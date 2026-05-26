@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: semantic-cv-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: semantic_cv_matcher
+    ports:
+      - "5432:5432"
+    volumes:
+      - semantic_cv_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  semantic_cv_postgres_data:
