@@ -2,12 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.health import router as health_router
+from app.core.config import settings
 
 # Initialize FastAPI application
 app = FastAPI(
-    title="Semantic CV Matcher API",
+    title=settings.PROJECT_NAME,
     description="AI-powered semantic CV and job matching backend service.",
-    version="1.0.0"
+    version=settings.API_VERSION
 )
 
 # Enable CORS for React frontend integration
@@ -30,5 +31,6 @@ async def root():
     """
     return {
         "status": "running",
-        "message": "Semantic CV Matcher Backend is active"
+        "message": f"{settings.PROJECT_NAME} is active",
+        "environment": settings.ENVIRONMENT
     }
