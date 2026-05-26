@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-
+from app.schemas.ner import ExtractedEntities
 
 class CVCreate(BaseModel):
     """
@@ -26,3 +26,4 @@ class CVResponse(BaseModel):
     location: str | None
     years_experience: float | None
     raw_text_preview: str
+    extracted_entities: ExtractedEntities

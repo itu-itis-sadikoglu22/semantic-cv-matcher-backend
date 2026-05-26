@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-
+from app.schemas.ner import ExtractedEntities
 
 class JobCreate(BaseModel):
     """
@@ -26,3 +26,4 @@ class JobResponse(BaseModel):
     seniority: str | None
     min_years_experience: float | None
     description_preview: str
+    extracted_entities: ExtractedEntities

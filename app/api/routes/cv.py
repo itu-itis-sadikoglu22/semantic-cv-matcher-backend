@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
+
 from app.schemas.cv import CVCreate, CVResponse
 from app.services.ingestion import create_text_preview, normalize_text
+from app.services.ner import extract_entities
 
 router = APIRouter()
 
@@ -16,6 +18,7 @@ async def create_cv(cv_data: CVCreate):
     """
 
     normalized_text = normalize_text(cv_data.raw_text)
+    extracted_entities = extract_entities(normalized_text)
 
     cv_id = len(cv_storage) + 1
 
@@ -27,6 +30,7 @@ async def create_cv(cv_data: CVCreate):
         "raw_text": normalized_text,
         "location": cv_data.location,
         "years_experience": cv_data.years_experience,
+        "extracted_entities": extracted_entities,
     }
 
     cv_storage.append(cv_record)
@@ -39,6 +43,7 @@ async def create_cv(cv_data: CVCreate):
         location=cv_data.location,
         years_experience=cv_data.years_experience,
         raw_text_preview=create_text_preview(normalized_text),
+        extracted_entities=extracted_entities,
     )
 
 
@@ -57,6 +62,7 @@ async def list_cvs():
             location=cv["location"],
             years_experience=cv["years_experience"],
             raw_text_preview=create_text_preview(cv["raw_text"]),
+            extracted_entities=cv["extracted_entities"],
         )
         for cv in cv_storage
     ]

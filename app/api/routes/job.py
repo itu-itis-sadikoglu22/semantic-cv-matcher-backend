@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.job import JobCreate, JobResponse
 from app.services.ingestion import create_text_preview, normalize_text
+from app.services.ner import extract_entities
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ async def create_job(job_data: JobCreate):
     """
 
     normalized_description = normalize_text(job_data.description)
+    extracted_entities = extract_entities(normalized_description)
 
     job_id = len(job_storage) + 1
 
@@ -27,6 +29,7 @@ async def create_job(job_data: JobCreate):
         "location": job_data.location,
         "seniority": job_data.seniority,
         "min_years_experience": job_data.min_years_experience,
+        "extracted_entities": extracted_entities,
     }
 
     job_storage.append(job_record)
@@ -39,6 +42,7 @@ async def create_job(job_data: JobCreate):
         seniority=job_data.seniority,
         min_years_experience=job_data.min_years_experience,
         description_preview=create_text_preview(normalized_description),
+        extracted_entities=extracted_entities,
     )
 
 
@@ -57,6 +61,7 @@ async def list_jobs():
             seniority=job["seniority"],
             min_years_experience=job["min_years_experience"],
             description_preview=create_text_preview(job["description"]),
+            extracted_entities=job["extracted_entities"],
         )
         for job in job_storage
     ]
