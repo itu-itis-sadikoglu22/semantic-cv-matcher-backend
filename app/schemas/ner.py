@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
 
 
+class NERRequest(BaseModel):
+    """
+    Request schema for extracting entities from raw text.
+    """
+
+    text: str = Field(..., min_length=20)
+
+
 class ExtractedEntities(BaseModel):
     """
     Structured entities extracted from CVs or job postings.
