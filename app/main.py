@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.health import router as health_router
+
 # Initialize FastAPI application
 app = FastAPI(
     title="Semantic CV Matcher API",
@@ -16,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register API routers
+app.include_router(health_router, prefix="/api")
 
 
 @app.get("/")
