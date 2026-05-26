@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+pydantic-settings
+sqlalchemy
+asyncpg
+psycopg[binary]
+pgvector
+transformers
+sentence-transformers
+torch
+numpy
+scikit-learn
+python-multipart
