@@ -13,3 +13,5 @@ torch
 numpy
 scikit-learn
 python-multipart
+pypdf
+python-docx
