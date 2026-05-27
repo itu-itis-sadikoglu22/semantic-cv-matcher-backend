@@ -1,7 +1,19 @@
 from fastapi import APIRouter
 
-from app.schemas.ai import AIModelInfo, AIModelsResponse
+from app.schemas.ai import (
+    AIModelInfo,
+    AIModelsResponse,
+    HybridNERRequest,
+    HybridNERResponse,
+    TransformerNERRequest,
+    TransformerNERResponse,
+)
 from app.services.embedding import EMBEDDING_MODEL_NAME
+from app.services.transformer_ner import (
+    TURKISH_NER_MODEL_NAME,
+    extract_transformer_ner_entities,
+)
+from app.services.hybrid_ner import extract_hybrid_entities
 
 router = APIRouter()
 
@@ -16,8 +28,9 @@ async def get_ai_models():
         project_ai_summary=(
             "The backend uses transformer-based sentence embeddings for semantic "
             "CV-job matching, rule-based domain entity extraction for the current "
-            "NER fallback, and explainable ranking based on semantic similarity, "
-            "skill overlap, and experience compatibility."
+            "NER fallback, an experimental transformer-based Turkish NER endpoint, "
+            "and explainable ranking based on semantic similarity, skill overlap, "
+            "and experience compatibility."
         ),
         models=[
             AIModelInfo(
@@ -49,21 +62,63 @@ async def get_ai_models():
                 status="Implemented",
             ),
             AIModelInfo(
-                name="BERTurk or Turkish Transformer NER",
+                name=TURKISH_NER_MODEL_NAME,
                 type="Transformer token classification model",
                 purpose=(
-                    "Planned transformer-based NER layer for extracting entities "
-                    "such as skills, job titles, companies, dates, and education "
-                    "from Turkish CVs and job postings."
+                    "Provides an experimental transformer-based Turkish NER layer "
+                    "for extracting named entities from CV and job posting texts."
                 ),
-                status="Planned",
+                status="Experimental",
             ),
         ],
         planned_improvements=[
-            "Integrate a Turkish transformer-based NER model.",
             "Merge transformer NER outputs with rule-based domain extraction.",
             "Add confidence/source information for extracted entities.",
             "Persist embeddings in PostgreSQL with pgvector.",
             "Use vector similarity search for scalable retrieval.",
         ],
+    )
+
+
+@router.post("/ai/transformer-ner/extract", response_model=TransformerNERResponse)
+async def extract_entities_with_transformer(request: TransformerNERRequest):
+    """
+    Extract entities using an experimental transformer-based Turkish NER model.
+    """
+
+    try:
+        entities = extract_transformer_ner_entities(request.text)
+
+        return TransformerNERResponse(
+            status="available",
+            model_name=TURKISH_NER_MODEL_NAME,
+            extraction_method="transformer_token_classification",
+            entities=entities,
+            error_message=None,
+        )
+
+    except Exception as error:
+        return TransformerNERResponse(
+            status="unavailable",
+            model_name=TURKISH_NER_MODEL_NAME,
+            extraction_method="transformer_token_classification",
+            entities=[],
+            error_message=str(error),
+        )
+    
+@router.post("/ai/hybrid-ner/extract", response_model=HybridNERResponse)
+async def extract_entities_with_hybrid_ner(request: HybridNERRequest):
+    """
+    Extract entities using a hybrid rule-based and transformer-based NER pipeline.
+    """
+
+    hybrid_result = extract_hybrid_entities(request.text)
+
+    return HybridNERResponse(
+        status=hybrid_result["status"],
+        extraction_method="hybrid_rule_based_plus_transformer_ner",
+        rule_based_entities=hybrid_result["rule_based_entities"],
+        transformer_entities=hybrid_result["transformer_entities"],
+        merged_entities=hybrid_result["merged_entities"],
+        notes=hybrid_result["notes"],
     )
