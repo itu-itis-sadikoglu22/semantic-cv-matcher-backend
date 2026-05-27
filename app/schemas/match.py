@@ -36,3 +36,40 @@ class MatchResponse(BaseModel):
     """
 
     result: MatchResult
+
+class TopKMatchItem(BaseModel):
+    """
+    Single ranked CV result for a stored job posting.
+    """
+
+    cv_id: int
+    candidate_name: str
+    job_id: int
+    job_title: str
+    final_score: float
+    semantic_score: float
+    skill_score: float
+    experience_score: float
+    matched_skills: list[str]
+    explanation: str
+
+
+class MatchFilters(BaseModel):
+    """
+    Metadata filters applied during top-k matching.
+    """
+
+    location: str | None
+    min_final_score: float | None
+
+
+class TopKMatchResponse(BaseModel):
+    """
+    Response schema for top-k matching against stored CV records.
+    """
+
+    job_id: int
+    job_title: str
+    top_k: int
+    filters: MatchFilters
+    results: list[TopKMatchItem]

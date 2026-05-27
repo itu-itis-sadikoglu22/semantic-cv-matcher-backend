@@ -2,7 +2,12 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.routes.cv import cv_storage
 from app.api.routes.job import job_storage
-from app.schemas.match import MatchRequest, MatchResponse, MatchResult
+from app.schemas.match import (
+    MatchRequest,
+    MatchResponse,
+    MatchResult,
+    TopKMatchResponse,
+)
 from app.services.embedding import generate_embedding
 from app.services.ner import extract_entities
 from app.services.ranking import (
@@ -95,7 +100,7 @@ async def match_cv_and_job_text(request: MatchRequest):
     return MatchResponse(result=result)
 
 
-@router.post("/match/job/{job_id}")
+@router.post("/match/job/{job_id}", response_model=TopKMatchResponse)
 async def match_job_with_stored_cvs(
     job_id: int,
     top_k: int = 5,
