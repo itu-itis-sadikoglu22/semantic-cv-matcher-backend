@@ -10,15 +10,20 @@ class MatchRequest(BaseModel):
 
     cv_text: str = Field(..., min_length=20)
     job_text: str = Field(..., min_length=20)
+    candidate_years_experience: float | None = Field(default=None, ge=0)
+    required_years_experience: float | None = Field(default=None, ge=0)
 
 
 class MatchResult(BaseModel):
     """
-    Single semantic matching result with explainable matching details.
+    Single semantic matching result with explainable ranking details.
     """
 
     similarity_score: float
-    percentage_score: float
+    semantic_score: float
+    skill_score: float
+    experience_score: float
+    final_score: float
     matched_skills: list[str]
     explanation: str
     cv_entities: ExtractedEntities
