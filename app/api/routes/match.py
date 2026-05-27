@@ -4,6 +4,7 @@ from app.api.routes.cv import cv_storage
 from app.api.routes.job import job_storage
 from app.schemas.match import (
     MatchRequest,
+    CVTopKMatchResponse,
     MatchResponse,
     MatchResult,
     TopKMatchResponse,
@@ -178,3 +179,82 @@ async def match_job_with_stored_cvs(
         },
         "results": ranked_results[:top_k],
     }
+
+@router.post("/match/cv/{cv_id}", response_model=CVTopKMatchResponse)
+async def match_cv_with_stored_jobs(
+    cv_id: int,
+    top_k: int = Query(default=5, ge=1, le=20),
+    location: str | None = None,
+    min_final_score: float | None = Query(default=None, ge=0, le=100),
+):
+    """
+    Match a stored CV with all temporarily stored job postings and return top-k results.
+    """
+
+    selected_cv = next(
+        (cv for cv in cv_storage if cv["id"] == cv_id),
+        None,
+    )
+
+    if selected_cv is None:
+        raise HTTPException(
+            status_code=404,
+            detail="CV record not found.",
+        )
+
+    if not job_storage:
+        raise HTTPException(
+            status_code=404,
+            detail="No job postings found. Please ingest at least one job posting first.",
+        )
+
+    ranked_results = []
+
+    for job in job_storage:
+        if location:
+            normalized_filter_location = normalize_location(location)
+            normalized_job_location = normalize_location(job.get("location"))
+
+            if normalized_job_location != normalized_filter_location:
+                continue
+
+        match_result = _build_match_result(
+            cv_text=selected_cv["raw_text"],
+            job_text=job["description"],
+            candidate_years_experience=selected_cv["years_experience"],
+            required_years_experience=job["min_years_experience"],
+        )
+
+        if min_final_score is not None and match_result.final_score < min_final_score:
+            continue
+
+        ranked_results.append(
+            {
+                "cv_id": selected_cv["id"],
+                "candidate_name": selected_cv["candidate_name"],
+                "job_id": job["id"],
+                "job_title": job["title"],
+                "final_score": match_result.final_score,
+                "semantic_score": match_result.semantic_score,
+                "skill_score": match_result.skill_score,
+                "experience_score": match_result.experience_score,
+                "matched_skills": match_result.matched_skills,
+                "explanation": match_result.explanation,
+            }
+        )
+
+    ranked_results.sort(
+        key=lambda result: result["final_score"],
+        reverse=True,
+    )
+
+    return CVTopKMatchResponse(
+        cv_id=selected_cv["id"],
+        candidate_name=selected_cv["candidate_name"],
+        top_k=top_k,
+        filters={
+            "location": location,
+            "min_final_score": min_final_score,
+        },
+        results=ranked_results[:top_k],
+    )

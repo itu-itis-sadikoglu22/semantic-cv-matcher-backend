@@ -73,3 +73,14 @@ class TopKMatchResponse(BaseModel):
     top_k: int
     filters: MatchFilters
     results: list[TopKMatchItem]
+
+class CVTopKMatchResponse(BaseModel):
+    """
+    Response schema for top-k job matching against a stored CV record.
+    """
+
+    cv_id: int
+    candidate_name: str
+    top_k: int
+    filters: MatchFilters
+    results: list[TopKMatchItem]
