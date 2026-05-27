@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.api.routes.cv import cv_storage
 from app.api.routes.job import job_storage
@@ -103,9 +103,9 @@ async def match_cv_and_job_text(request: MatchRequest):
 @router.post("/match/job/{job_id}", response_model=TopKMatchResponse)
 async def match_job_with_stored_cvs(
     job_id: int,
-    top_k: int = 5,
+    top_k: int = Query(default=5, ge=1, le=20),
     location: str | None = None,
-    min_final_score: float | None = None,
+    min_final_score: float | None = Query(default=None, ge=0, le=100),
 ):
     """
     Match a stored job posting with all temporarily stored CVs and return top-k results.
