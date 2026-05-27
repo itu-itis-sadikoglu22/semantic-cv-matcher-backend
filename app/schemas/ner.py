@@ -19,3 +19,13 @@ class ExtractedEntities(BaseModel):
     companies: list[str] = Field(default_factory=list)
     dates: list[str] = Field(default_factory=list)
     education: list[str] = Field(default_factory=list)
+
+class NERResponse(BaseModel):
+    """
+    Enhanced response schema for entity extraction.
+    """
+
+    extraction_method: str
+    entity_count: int
+    confidence_note: str
+    entities: ExtractedEntities
