@@ -1,5 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
+from app.api.routes.cv import cv_storage
+from app.api.routes.job import job_storage
 from app.schemas.match import MatchRequest, MatchResponse, MatchResult
 from app.services.embedding import generate_embedding
 from app.services.ner import extract_entities
@@ -16,20 +18,24 @@ from app.services.similarity import (
 router = APIRouter()
 
 
-@router.post("/match/text", response_model=MatchResponse)
-async def match_cv_and_job_text(request: MatchRequest):
+def _build_match_result(
+    cv_text: str,
+    job_text: str,
+    candidate_years_experience: float | None = None,
+    required_years_experience: float | None = None,
+) -> MatchResult:
     """
-    Match a CV text and a job posting text using semantic similarity and ranking signals.
+    Build a semantic and explainable match result for one CV-job pair.
     """
 
-    cv_embedding = generate_embedding(request.cv_text)
-    job_embedding = generate_embedding(request.job_text)
+    cv_embedding = generate_embedding(cv_text)
+    job_embedding = generate_embedding(job_text)
 
     similarity_score = calculate_cosine_similarity(cv_embedding, job_embedding)
     semantic_score = calculate_percentage_score(similarity_score)
 
-    cv_entities = extract_entities(request.cv_text)
-    job_entities = extract_entities(request.job_text)
+    cv_entities = extract_entities(cv_text)
+    job_entities = extract_entities(job_text)
 
     matched_skills = sorted(
         set(cv_entities.skills).intersection(set(job_entities.skills))
@@ -41,8 +47,8 @@ async def match_cv_and_job_text(request: MatchRequest):
     )
 
     experience_score = calculate_experience_score(
-        candidate_years=request.candidate_years_experience,
-        required_years=request.required_years_experience,
+        candidate_years=candidate_years_experience,
+        required_years=required_years_experience,
     )
 
     final_score = calculate_final_score(
@@ -58,16 +64,94 @@ async def match_cv_and_job_text(request: MatchRequest):
         f"Matched skills: {', '.join(matched_skills) if matched_skills else 'none'}."
     )
 
-    return MatchResponse(
-        result=MatchResult(
-            similarity_score=round(similarity_score, 4),
-            semantic_score=semantic_score,
-            skill_score=skill_score,
-            experience_score=experience_score,
-            final_score=final_score,
-            matched_skills=matched_skills,
-            explanation=explanation,
-            cv_entities=cv_entities,
-            job_entities=job_entities,
-        )
+    return MatchResult(
+        similarity_score=round(similarity_score, 4),
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+        final_score=final_score,
+        matched_skills=matched_skills,
+        explanation=explanation,
+        cv_entities=cv_entities,
+        job_entities=job_entities,
     )
+
+
+@router.post("/match/text", response_model=MatchResponse)
+async def match_cv_and_job_text(request: MatchRequest):
+    """
+    Match a CV text and a job posting text using semantic similarity and ranking signals.
+    """
+
+    result = _build_match_result(
+        cv_text=request.cv_text,
+        job_text=request.job_text,
+        candidate_years_experience=request.candidate_years_experience,
+        required_years_experience=request.required_years_experience,
+    )
+
+    return MatchResponse(result=result)
+
+
+@router.post("/match/job/{job_id}")
+async def match_job_with_stored_cvs(
+    job_id: int,
+    top_k: int = 5,
+):
+    """
+    Match a stored job posting with all temporarily stored CVs and return top-k results.
+    """
+
+    selected_job = next(
+        (job for job in job_storage if job["id"] == job_id),
+        None,
+    )
+
+    if selected_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job posting not found.",
+        )
+
+    if not cv_storage:
+        raise HTTPException(
+            status_code=404,
+            detail="No CV records found. Please ingest at least one CV first.",
+        )
+
+    ranked_results = []
+
+    for cv in cv_storage:
+        match_result = _build_match_result(
+            cv_text=cv["raw_text"],
+            job_text=selected_job["description"],
+            candidate_years_experience=cv["years_experience"],
+            required_years_experience=selected_job["min_years_experience"],
+        )
+
+        ranked_results.append(
+            {
+                "cv_id": cv["id"],
+                "candidate_name": cv["candidate_name"],
+                "job_id": selected_job["id"],
+                "job_title": selected_job["title"],
+                "final_score": match_result.final_score,
+                "semantic_score": match_result.semantic_score,
+                "skill_score": match_result.skill_score,
+                "experience_score": match_result.experience_score,
+                "matched_skills": match_result.matched_skills,
+                "explanation": match_result.explanation,
+            }
+        )
+
+    ranked_results.sort(
+        key=lambda result: result["final_score"],
+        reverse=True,
+    )
+
+    return {
+        "job_id": selected_job["id"],
+        "job_title": selected_job["title"],
+        "top_k": top_k,
+        "results": ranked_results[:top_k],
+    }
