@@ -1,7 +1,7 @@
-from fastapi import APIRouter
-
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.schemas.cv import CVCreate, CVResponse
+from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
 from app.services.ner import extract_entities
 
@@ -66,3 +66,66 @@ async def list_cvs():
         )
         for cv in cv_storage
     ]
+
+
+@router.post("/cvs/upload", response_model=CVResponse)
+async def upload_cv_file(
+    candidate_name: str = Form(...),
+    file: UploadFile = File(...),
+    email: str | None = Form(default=None),
+    phone: str | None = Form(default=None),
+    location: str | None = Form(default=None),
+    years_experience: float | None = Form(default=None),
+):
+    """
+    Upload a CV file, extract text content, run NER, and return a structured response.
+    """
+
+    file_bytes = await file.read()
+
+    try:
+        extracted_text = extract_text_from_file(
+            file_bytes=file_bytes,
+            filename=file.filename or "",
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    normalized_text = normalize_text(extracted_text)
+
+    if not normalized_text:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file does not contain readable text.",
+        )
+
+    extracted_entities = extract_entities(normalized_text)
+
+    cv_id = len(cv_storage) + 1
+
+    cv_record = {
+        "id": cv_id,
+        "candidate_name": candidate_name,
+        "email": email,
+        "phone": phone,
+        "raw_text": normalized_text,
+        "location": location,
+        "years_experience": years_experience,
+        "extracted_entities": extracted_entities,
+    }
+
+    cv_storage.append(cv_record)
+
+    return CVResponse(
+        id=cv_id,
+        candidate_name=candidate_name,
+        email=email,
+        phone=phone,
+        location=location,
+        years_experience=years_experience,
+        raw_text_preview=create_text_preview(normalized_text),
+        extracted_entities=extracted_entities,
+    )
