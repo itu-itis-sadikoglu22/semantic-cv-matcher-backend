@@ -4,6 +4,7 @@ from app.schemas.cv import CVCreate, CVResponse
 from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
 from app.services.ner import extract_entities
+from app.schemas.common import MessageResponse
 
 router = APIRouter()
 
@@ -155,4 +156,27 @@ async def upload_cv_file(
         years_experience=years_experience,
         raw_text_preview=create_text_preview(normalized_text),
         extracted_entities=extracted_entities,
+    )
+
+@router.delete("/cvs/{cv_id}", response_model=MessageResponse)
+async def delete_cv_by_id(cv_id: int):
+    """
+    Delete a single CV record by ID from temporary in-memory storage.
+    """
+
+    selected_cv = next(
+        (cv for cv in cv_storage if cv["id"] == cv_id),
+        None,
+    )
+
+    if selected_cv is None:
+        raise HTTPException(
+            status_code=404,
+            detail="CV record not found.",
+        )
+
+    cv_storage.remove(selected_cv)
+
+    return MessageResponse(
+        message=f"CV record with id {cv_id} was deleted successfully."
     )

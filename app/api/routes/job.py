@@ -4,6 +4,7 @@ from app.schemas.job import JobCreate, JobResponse
 from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
 from app.services.ner import extract_entities
+from app.schemas.common import MessageResponse
 
 router = APIRouter()
 
@@ -155,4 +156,27 @@ async def upload_job_file(
         min_years_experience=min_years_experience,
         description_preview=create_text_preview(normalized_description),
         extracted_entities=extracted_entities,
+    )
+
+@router.delete("/jobs/{job_id}", response_model=MessageResponse)
+async def delete_job_by_id(job_id: int):
+    """
+    Delete a single job posting record by ID from temporary in-memory storage.
+    """
+
+    selected_job = next(
+        (job for job in job_storage if job["id"] == job_id),
+        None,
+    )
+
+    if selected_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job posting not found.",
+        )
+
+    job_storage.remove(selected_job)
+
+    return MessageResponse(
+        message=f"Job posting with id {job_id} was deleted successfully."
     )
