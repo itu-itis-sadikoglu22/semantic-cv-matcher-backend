@@ -15,6 +15,8 @@ from app.services.similarity import (
     calculate_percentage_score,
 )
 
+from app.services.location import normalize_location
+
 router = APIRouter()
 
 
@@ -97,6 +99,8 @@ async def match_cv_and_job_text(request: MatchRequest):
 async def match_job_with_stored_cvs(
     job_id: int,
     top_k: int = 5,
+    location: str | None = None,
+    min_final_score: float | None = None,
 ):
     """
     Match a stored job posting with all temporarily stored CVs and return top-k results.
@@ -122,12 +126,22 @@ async def match_job_with_stored_cvs(
     ranked_results = []
 
     for cv in cv_storage:
+        if location:
+            normalized_filter_location = normalize_location(location)
+            normalized_cv_location = normalize_location(cv.get("location"))
+
+        if normalized_cv_location != normalized_filter_location:
+            continue
+
         match_result = _build_match_result(
             cv_text=cv["raw_text"],
             job_text=selected_job["description"],
             candidate_years_experience=cv["years_experience"],
             required_years_experience=selected_job["min_years_experience"],
         )
+
+        if min_final_score is not None and match_result.final_score < min_final_score:
+            continue
 
         ranked_results.append(
             {
@@ -153,5 +167,9 @@ async def match_job_with_stored_cvs(
         "job_id": selected_job["id"],
         "job_title": selected_job["title"],
         "top_k": top_k,
+        "filters": {
+            "location": location,
+            "min_final_score": min_final_score,
+        },
         "results": ranked_results[:top_k],
     }
