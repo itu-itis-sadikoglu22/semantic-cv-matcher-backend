@@ -180,3 +180,16 @@ async def delete_cv_by_id(cv_id: int):
     return MessageResponse(
         message=f"CV record with id {cv_id} was deleted successfully."
     )
+
+@router.delete("/cvs", response_model=MessageResponse)
+async def clear_all_cvs():
+    """
+    Delete all CV records from temporary in-memory storage.
+    """
+
+    deleted_count = len(cv_storage)
+    cv_storage.clear()
+
+    return MessageResponse(
+        message=f"{deleted_count} CV record(s) were deleted successfully."
+    )

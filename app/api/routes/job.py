@@ -180,3 +180,16 @@ async def delete_job_by_id(job_id: int):
     return MessageResponse(
         message=f"Job posting with id {job_id} was deleted successfully."
     )
+
+@router.delete("/jobs", response_model=MessageResponse)
+async def clear_all_jobs():
+    """
+    Delete all job posting records from temporary in-memory storage.
+    """
+
+    deleted_count = len(job_storage)
+    job_storage.clear()
+
+    return MessageResponse(
+        message=f"{deleted_count} job posting record(s) were deleted successfully."
+    )
