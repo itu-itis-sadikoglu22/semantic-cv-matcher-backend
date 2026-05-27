@@ -67,6 +67,33 @@ async def list_cvs():
         for cv in cv_storage
     ]
 
+@router.get("/cvs/{cv_id}", response_model=CVResponse)
+async def get_cv_by_id(cv_id: int):
+    """
+    Get a single CV record by ID from temporary in-memory storage.
+    """
+
+    selected_cv = next(
+        (cv for cv in cv_storage if cv["id"] == cv_id),
+        None,
+    )
+
+    if selected_cv is None:
+        raise HTTPException(
+            status_code=404,
+            detail="CV record not found.",
+        )
+
+    return CVResponse(
+        id=selected_cv["id"],
+        candidate_name=selected_cv["candidate_name"],
+        email=selected_cv["email"],
+        phone=selected_cv["phone"],
+        location=selected_cv["location"],
+        years_experience=selected_cv["years_experience"],
+        raw_text_preview=create_text_preview(selected_cv["raw_text"]),
+        extracted_entities=selected_cv["extracted_entities"],
+    )
 
 @router.post("/cvs/upload", response_model=CVResponse)
 async def upload_cv_file(

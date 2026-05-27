@@ -67,6 +67,34 @@ async def list_jobs():
         for job in job_storage
     ]
 
+@router.get("/jobs/{job_id}", response_model=JobResponse)
+async def get_job_by_id(job_id: int):
+    """
+    Get a single job posting record by ID from temporary in-memory storage.
+    """
+
+    selected_job = next(
+        (job for job in job_storage if job["id"] == job_id),
+        None,
+    )
+
+    if selected_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job posting not found.",
+        )
+
+    return JobResponse(
+        id=selected_job["id"],
+        title=selected_job["title"],
+        company_name=selected_job["company_name"],
+        location=selected_job["location"],
+        seniority=selected_job["seniority"],
+        min_years_experience=selected_job["min_years_experience"],
+        description_preview=create_text_preview(selected_job["description"]),
+        extracted_entities=selected_job["extracted_entities"],
+    )
+
 @router.post("/jobs/upload", response_model=JobResponse)
 async def upload_job_file(
     title: str = Form(...),
