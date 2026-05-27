@@ -1,10 +1,11 @@
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.schemas.job import JobCreate, JobResponse
 from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
 from app.services.ner import extract_entities
 from app.schemas.common import MessageResponse
+from app.services.location import normalize_location
 
 router = APIRouter()
 
@@ -58,10 +59,44 @@ async def create_job(job_data: JobCreate):
 
 
 @router.get("/jobs", response_model=list[JobResponse])
-async def list_jobs():
+async def list_jobs(
+    location: str | None = None,
+    skill: str | None = Query(default=None),
+    seniority: str | None = None,
+):
     """
-    Return all ingested job postings from temporary memory storage.
+    List job postings with optional metadata/entity filters.
     """
+
+    filtered_jobs = job_storage
+
+    if location:
+        normalized_filter_location = normalize_location(location)
+
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if normalize_location(job.get("location")) == normalized_filter_location
+        ]
+
+    if skill:
+        normalized_skill = skill.strip().lower()
+
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if any(
+                job_skill.lower() == normalized_skill
+                for job_skill in job["extracted_entities"].skills
+            )
+        ]
+
+    if seniority:
+        normalized_seniority = seniority.strip().lower()
+
+        filtered_jobs = [
+            job for job in filtered_jobs
+            if job.get("seniority")
+            and job["seniority"].strip().lower() == normalized_seniority
+        ]
 
     return [
         JobResponse(
@@ -74,7 +109,7 @@ async def list_jobs():
             description_preview=create_text_preview(job["description"]),
             extracted_entities=job["extracted_entities"],
         )
-        for job in job_storage
+        for job in filtered_jobs
     ]
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)

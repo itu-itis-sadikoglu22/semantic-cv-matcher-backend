@@ -1,10 +1,11 @@
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
+from app.schemas.common import MessageResponse
 from app.schemas.cv import CVCreate, CVResponse
 from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
+from app.services.location import normalize_location
 from app.services.ner import extract_entities
-from app.schemas.common import MessageResponse
 
 router = APIRouter()
 
@@ -57,10 +58,36 @@ async def create_cv(cv_data: CVCreate):
 
 
 @router.get("/cvs", response_model=list[CVResponse])
-async def list_cvs():
+async def list_cvs(
+    location: str | None = Query(default=None),
+    skill: str | None = Query(default=None),
+):
     """
-    Return all ingested CV records from temporary memory storage.
+    List CV records with optional metadata/entity filters.
     """
+
+    filtered_cvs = cv_storage.copy()
+
+    if location:
+        normalized_filter_location = normalize_location(location)
+
+        filtered_cvs = [
+            cv
+            for cv in filtered_cvs
+            if normalize_location(cv.get("location")) == normalized_filter_location
+        ]
+
+    if skill:
+        normalized_skill = skill.strip().lower()
+
+        filtered_cvs = [
+            cv
+            for cv in filtered_cvs
+            if any(
+                cv_skill.lower() == normalized_skill
+                for cv_skill in cv["extracted_entities"].skills
+            )
+        ]
 
     return [
         CVResponse(
@@ -73,36 +100,52 @@ async def list_cvs():
             raw_text_preview=create_text_preview(cv["raw_text"]),
             extracted_entities=cv["extracted_entities"],
         )
-        for cv in cv_storage
+        for cv in filtered_cvs
     ]
 
-@router.get("/cvs/{cv_id}", response_model=CVResponse)
-async def get_cv_by_id(cv_id: int):
+@router.get("/cvs", response_model=list[CVResponse])
+async def list_cvs(
+    location: str | None = None,
+    skill: str | None = Query(default=None),
+):
     """
-    Get a single CV record by ID from temporary in-memory storage.
+    List CV records with optional metadata/entity filters.
     """
 
-    selected_cv = next(
-        (cv for cv in cv_storage if cv["id"] == cv_id),
-        None,
-    )
+    filtered_cvs = cv_storage
 
-    if selected_cv is None:
-        raise HTTPException(
-            status_code=404,
-            detail="CV record not found.",
+    if location:
+        normalized_filter_location = normalize_location(location)
+
+        filtered_cvs = [
+            cv for cv in filtered_cvs
+            if normalize_location(cv.get("location")) == normalized_filter_location
+        ]
+
+    if skill:
+        normalized_skill = skill.strip().lower()
+
+        filtered_cvs = [
+            cv for cv in filtered_cvs
+            if any(
+                cv_skill.lower() == normalized_skill
+                for cv_skill in cv["extracted_entities"].skills
+            )
+        ]
+
+    return [
+        CVResponse(
+            id=cv["id"],
+            candidate_name=cv["candidate_name"],
+            email=cv["email"],
+            phone=cv["phone"],
+            location=cv["location"],
+            years_experience=cv["years_experience"],
+            raw_text_preview=create_text_preview(cv["raw_text"]),
+            extracted_entities=cv["extracted_entities"],
         )
-
-    return CVResponse(
-        id=selected_cv["id"],
-        candidate_name=selected_cv["candidate_name"],
-        email=selected_cv["email"],
-        phone=selected_cv["phone"],
-        location=selected_cv["location"],
-        years_experience=selected_cv["years_experience"],
-        raw_text_preview=create_text_preview(selected_cv["raw_text"]),
-        extracted_entities=selected_cv["extracted_entities"],
-    )
+        for cv in filtered_cvs
+    ]
 
 @router.post("/cvs/upload", response_model=CVResponse)
 async def upload_cv_file(
