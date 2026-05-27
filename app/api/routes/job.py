@@ -10,6 +10,15 @@ router = APIRouter()
 
 # Temporary in-memory storage until PostgreSQL integration is active
 job_storage: list[dict] = []
+def get_next_job_id() -> int:
+    """
+    Generate the next job posting ID based on the current maximum ID in memory.
+    """
+
+    if not job_storage:
+        return 1
+
+    return max(job["id"] for job in job_storage) + 1
 
 
 @router.post("/jobs", response_model=JobResponse)
@@ -21,7 +30,7 @@ async def create_job(job_data: JobCreate):
     normalized_description = normalize_text(job_data.description)
     extracted_entities = extract_entities(normalized_description)
 
-    job_id = len(job_storage) + 1
+    job_id = get_next_job_id()
 
     job_record = {
         "id": job_id,
@@ -132,7 +141,7 @@ async def upload_job_file(
 
     extracted_entities = extract_entities(normalized_description)
 
-    job_id = len(job_storage) + 1
+    job_id = get_next_job_id()
 
     job_record = {
         "id": job_id,

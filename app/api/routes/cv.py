@@ -10,7 +10,15 @@ router = APIRouter()
 
 # Temporary in-memory storage until PostgreSQL integration is active
 cv_storage: list[dict] = []
+def get_next_cv_id() -> int:
+    """
+    Generate the next CV ID based on the current maximum ID in memory.
+    """
 
+    if not cv_storage:
+        return 1
+
+    return max(cv["id"] for cv in cv_storage) + 1
 
 @router.post("/cvs", response_model=CVResponse)
 async def create_cv(cv_data: CVCreate):
@@ -21,7 +29,7 @@ async def create_cv(cv_data: CVCreate):
     normalized_text = normalize_text(cv_data.raw_text)
     extracted_entities = extract_entities(normalized_text)
 
-    cv_id = len(cv_storage) + 1
+    cv_id = get_next_cv_id()
 
     cv_record = {
         "id": cv_id,
@@ -132,8 +140,8 @@ async def upload_cv_file(
 
     extracted_entities = extract_entities(normalized_text)
 
-    cv_id = len(cv_storage) + 1
-
+    cv_id = get_next_cv_id()
+    
     cv_record = {
         "id": cv_id,
         "candidate_name": candidate_name,
