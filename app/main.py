@@ -8,6 +8,7 @@ from app.api.routes.cv import router as cv_router
 from app.api.routes.job import router as job_router
 from app.api.routes.ner import router as ner_router
 from app.api.routes.embedding import router as embedding_router
+from app.api.routes.match import router as match_router
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -32,6 +33,7 @@ app.include_router(cv_router, prefix="/api", tags=["CV Ingestion"])
 app.include_router(job_router, prefix="/api", tags=["Job Ingestion"])
 app.include_router(ner_router, prefix="/api", tags=["NER Extraction"])
 app.include_router(embedding_router, prefix="/api", tags=["Embedding"])
+app.include_router(match_router, prefix="/api", tags=["Matching"])
 
 @app.get("/")
 async def root():
