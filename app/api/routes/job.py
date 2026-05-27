@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.schemas.job import JobCreate, JobResponse
+from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
 from app.services.ner import extract_entities
 
@@ -65,3 +66,65 @@ async def list_jobs():
         )
         for job in job_storage
     ]
+
+@router.post("/jobs/upload", response_model=JobResponse)
+async def upload_job_file(
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    company_name: str | None = Form(default=None),
+    location: str | None = Form(default=None),
+    seniority: str | None = Form(default=None),
+    min_years_experience: float | None = Form(default=None),
+):
+    """
+    Upload a job posting file, extract text content, run NER, and return a structured response.
+    """
+
+    file_bytes = await file.read()
+
+    try:
+        extracted_text = extract_text_from_file(
+            file_bytes=file_bytes,
+            filename=file.filename or "",
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    normalized_description = normalize_text(extracted_text)
+
+    if not normalized_description:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file does not contain readable text.",
+        )
+
+    extracted_entities = extract_entities(normalized_description)
+
+    job_id = len(job_storage) + 1
+
+    job_record = {
+        "id": job_id,
+        "title": title,
+        "company_name": company_name,
+        "description": normalized_description,
+        "location": location,
+        "seniority": seniority,
+        "min_years_experience": min_years_experience,
+        "extracted_entities": extracted_entities,
+    }
+
+    job_storage.append(job_record)
+
+    return JobResponse(
+        id=job_id,
+        title=title,
+        company_name=company_name,
+        location=location,
+        seniority=seniority,
+        min_years_experience=min_years_experience,
+        description_preview=create_text_preview(normalized_description),
+        extracted_entities=extracted_entities,
+    )
