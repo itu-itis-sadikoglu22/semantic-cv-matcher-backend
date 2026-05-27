@@ -392,3 +392,89 @@ http://127.0.0.1:8000/api/match/job/1?top_k=5&location=Istanbul&min_final_score=
 - Stored CVs and jobs are reset when the backend server restarts.
 - PostgreSQL and pgvector persistence will be added later.
 - Location filter is normalized, so Istanbul, İstanbul, istanbul, and ISTANBUL should match.
+
+---
+
+# 12. Get CV Detail
+
+## GET /cvs/{cv_id}
+
+Returns a single temporarily stored CV record by ID.
+
+### Path Parameter
+
+cv_id: integer, required
+
+### Example URL
+
+http://127.0.0.1:8000/api/cvs/1
+
+### Response
+
+{
+  "id": 1,
+  "candidate_name": "Ahmet Yilmaz",
+  "email": "ahmet@example.com",
+  "phone": "+905551112233",
+  "location": "Istanbul",
+  "years_experience": 3,
+  "raw_text_preview": "Ahmet Yilmaz Bilgisayar Mühendisliği mezunudur...",
+  "extracted_entities": {
+    "skills": ["Docker", "FastAPI", "PostgreSQL", "Python", "REST API", "SQL"],
+    "roles": ["Backend Developer"],
+    "companies": [],
+    "dates": ["3 yıl"],
+    "education": ["Bilgisayar Mühendisliği"]
+  }
+}
+
+### Error Response
+
+If the CV record does not exist:
+
+{
+  "detail": "CV record not found."
+}
+
+---
+
+# 13. Get Job Detail
+
+## GET /jobs/{job_id}
+
+Returns a single temporarily stored job posting by ID.
+
+### Path Parameter
+
+job_id: integer, required
+
+### Example URL
+
+http://127.0.0.1:8000/api/jobs/1
+
+### Response
+
+{
+  "id": 1,
+  "title": "Backend Developer",
+  "company_name": "Example Tech",
+  "location": "Istanbul",
+  "seniority": "Mid-Level",
+  "min_years_experience": 2,
+  "description_preview": "Python, FastAPI, PostgreSQL, Docker, SQL ve REST API deneyimi olan Backend Developer arıyoruz...",
+  "extracted_entities": {
+    "skills": ["Docker", "FastAPI", "PostgreSQL", "Python", "REST API", "SQL"],
+    "roles": ["Backend Developer"],
+    "companies": [],
+    "dates": [],
+    "education": []
+  }
+}
+
+### Error Response
+
+If the job posting does not exist:
+
+{
+  "detail": "Job posting not found."
+}
