@@ -82,9 +82,11 @@ async def create_cv(cv_data: CVCreate):
 async def list_cvs(
     location: str | None = Query(default=None),
     skill: str | None = Query(default=None),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     """
-    List CV records with optional metadata/entity filters.
+    List CV records with optional metadata/entity filters and pagination.
     """
 
     filtered_cvs = cv_storage.copy()
@@ -110,6 +112,8 @@ async def list_cvs(
             )
         ]
 
+    paginated_cvs = filtered_cvs[offset : offset + limit]
+
     return [
         CVResponse(
             id=cv["id"],
@@ -122,9 +126,8 @@ async def list_cvs(
             extracted_entities=cv["extracted_entities"],
             ai_extraction_metadata=cv.get("ai_extraction_metadata"),
         )
-        for cv in filtered_cvs
+        for cv in paginated_cvs
     ]
-
 
 @router.get("/cvs/{cv_id}", response_model=CVResponse)
 async def get_cv_by_id(cv_id: int):

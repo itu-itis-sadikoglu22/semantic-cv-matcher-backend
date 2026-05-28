@@ -83,6 +83,8 @@ async def list_jobs(
     location: str | None = Query(default=None),
     skill: str | None = Query(default=None),
     seniority: str | None = Query(default=None),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     """
     List job postings with optional metadata/entity filters.
@@ -121,6 +123,10 @@ async def list_jobs(
             and job["seniority"].strip().lower() == normalized_seniority
         ]
 
+
+
+    paginated_jobs = filtered_jobs[offset : offset + limit]
+
     return [
         JobResponse(
             id=job["id"],
@@ -133,7 +139,7 @@ async def list_jobs(
             extracted_entities=job["extracted_entities"],
             ai_extraction_metadata=job.get("ai_extraction_metadata"),
         )
-        for job in filtered_jobs
+        for job in paginated_jobs
     ]
 
 
