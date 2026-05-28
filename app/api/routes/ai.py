@@ -14,6 +14,8 @@ from app.schemas.ai import (
     EmbeddingComparisonRequest,
     EmbeddingComparisonResponse,
     EmbeddingModelPreview,
+    AIMatchingEvaluationRequest,
+    AIMatchingEvaluationResponse,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
@@ -27,6 +29,9 @@ from app.services.berturk_embedding import (
     BERTURK_MODEL_NAME,
     generate_berturk_embedding,
 )
+from app.services.ranking import calculate_final_score
+from app.services.similarity import calculate_cosine_similarity
+from app.services.ner import extract_entities
 
 router = APIRouter()
 
@@ -56,6 +61,124 @@ def _calculate_entities_added_by_hybrid(
             set(hybrid_entities.education) - set(rule_based_entities.education)
         ),
     }
+
+
+def _get_recommendation_level_for_ai(final_score: float) -> str:
+    """
+    Convert final score into a recommendation level.
+    """
+
+    if final_score >= 85:
+        return "STRONG_MATCH"
+
+    if final_score >= 70:
+        return "GOOD_MATCH"
+
+    if final_score >= 50:
+        return "POSSIBLE_MATCH"
+
+    return "WEAK_MATCH"
+
+
+def _build_ai_strengths(
+    matched_skills: list[str],
+    semantic_score: float,
+    experience_score: float,
+) -> list[str]:
+    """
+    Build human-readable strengths for a matching result.
+    """
+
+    strengths = []
+
+    if semantic_score >= 70:
+        strengths.append("The CV and job description are semantically similar.")
+
+    if matched_skills:
+        strengths.append(
+            f"The candidate matches {len(matched_skills)} required skill(s)."
+        )
+
+    if experience_score >= 80:
+        strengths.append("The candidate meets the experience expectation.")
+
+    return strengths
+
+
+def _build_ai_weaknesses(
+    matched_skills: list[str],
+    job_skill_count: int,
+    semantic_score: float,
+    experience_score: float,
+) -> list[str]:
+    """
+    Build human-readable weaknesses for a matching result.
+    """
+
+    weaknesses = []
+
+    if semantic_score < 50:
+        weaknesses.append("The semantic similarity between CV and job text is low.")
+
+    if job_skill_count > 0 and len(matched_skills) < job_skill_count:
+        missing_count = job_skill_count - len(matched_skills)
+        weaknesses.append(
+            f"The candidate is missing {missing_count} detected required skill(s)."
+        )
+
+    if experience_score < 80:
+        weaknesses.append("The candidate may not fully meet the experience expectation.")
+
+    return weaknesses
+
+
+def _build_ai_comment(final_score: float, recommendation_level: str) -> str:
+    """
+    Build a short AI-style evaluation comment.
+    """
+
+    if recommendation_level == "STRONG_MATCH":
+        return (
+            f"The candidate is a strong fit for this role with a final score of "
+            f"{final_score}."
+        )
+
+    if recommendation_level == "GOOD_MATCH":
+        return (
+            f"The candidate is a good fit, but there may still be minor gaps. "
+            f"Final score: {final_score}."
+        )
+
+    if recommendation_level == "POSSIBLE_MATCH":
+        return (
+            f"The candidate may be suitable, but the match requires further review. "
+            f"Final score: {final_score}."
+        )
+
+    return (
+        f"The candidate appears to be a weak match for this role. "
+        f"Final score: {final_score}."
+    )
+
+
+def _calculate_skill_score_for_ai(
+    cv_skills: list[str],
+    job_skills: list[str],
+) -> float:
+    """
+    Calculate skill overlap score between CV skills and job skills.
+    """
+
+    if not job_skills:
+        return 100.0
+
+    matched_skills = set(cv_skills).intersection(set(job_skills))
+
+    return round(
+        (len(matched_skills) / len(set(job_skills))) * 100,
+        2,
+    )
+
 
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models():
@@ -264,4 +387,85 @@ async def compare_embedding_models(request: EmbeddingComparisonRequest):
             "included as an experimental Turkish transformer encoder for representation "
             "comparison and future AI improvements."
         ),
+    )
+
+@router.post("/ai/matching-evaluation", response_model=AIMatchingEvaluationResponse)
+async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
+    """
+    Evaluate CV-job matching with AI/NLP scoring details.
+    """
+
+    cv_embedding = generate_embedding(request.cv_text)
+    job_embedding = generate_embedding(request.job_text)
+
+    similarity_score = calculate_cosine_similarity(
+        first_embedding=cv_embedding,
+        second_embedding=job_embedding,
+    )
+
+    semantic_score = round(similarity_score * 100, 2)
+
+    cv_entities = extract_entities(request.cv_text)
+    job_entities = extract_entities(request.job_text)
+
+    skill_score = _calculate_skill_score_for_ai(
+        cv_skills=cv_entities.skills,
+        job_skills=job_entities.skills,
+    )
+
+    experience_score = 100.0
+
+    if (
+        request.candidate_years_experience is not None
+        and request.required_years_experience is not None
+    ):
+        if request.candidate_years_experience >= request.required_years_experience:
+            experience_score = 100.0
+        else:
+            experience_score = round(
+                (request.candidate_years_experience / request.required_years_experience)
+                * 100,
+                2,
+            )
+
+    final_score = calculate_final_score(
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+    )
+
+    matched_skills = sorted(
+        set(cv_entities.skills).intersection(set(job_entities.skills))
+    )
+
+    recommendation_level = _get_recommendation_level_for_ai(final_score)
+
+    strengths = _build_ai_strengths(
+        matched_skills=matched_skills,
+        semantic_score=semantic_score,
+        experience_score=experience_score,
+    )
+
+    weaknesses = _build_ai_weaknesses(
+        matched_skills=matched_skills,
+        job_skill_count=len(job_entities.skills),
+        semantic_score=semantic_score,
+        experience_score=experience_score,
+    )
+
+    ai_comment = _build_ai_comment(
+        final_score=final_score,
+        recommendation_level=recommendation_level,
+    )
+
+    return AIMatchingEvaluationResponse(
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+        final_score=final_score,
+        recommendation_level=recommendation_level,
+        matched_skills=matched_skills,
+        strengths=strengths,
+        weaknesses=weaknesses,
+        ai_comment=ai_comment,
     )

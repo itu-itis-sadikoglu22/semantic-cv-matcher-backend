@@ -145,3 +145,21 @@ class EmbeddingComparisonResponse(BaseModel):
     sentence_transformer: EmbeddingModelPreview
     berturk: EmbeddingModelPreview
     explanation: str
+
+class AIMatchingEvaluationRequest(BaseModel):
+    cv_text: str = Field(..., min_length=20)
+    job_text: str = Field(..., min_length=20)
+    candidate_years_experience: float | None = Field(default=None, ge=0)
+    required_years_experience: float | None = Field(default=None, ge=0)
+
+
+class AIMatchingEvaluationResponse(BaseModel):
+    semantic_score: float
+    skill_score: float
+    experience_score: float
+    final_score: float
+    recommendation_level: str
+    matched_skills: list[str]
+    strengths: list[str]
+    weaknesses: list[str]
+    ai_comment: str
