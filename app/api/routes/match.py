@@ -3,14 +3,17 @@ from fastapi import APIRouter, HTTPException, Query
 from app.api.routes.cv import cv_storage
 from app.api.routes.job import job_storage
 from app.schemas.match import (
-    MatchRequest,
     CVTopKMatchResponse,
+    MatchEvidence,
+    MatchRequest,
     MatchResponse,
     MatchResult,
     TopKMatchResponse,
 )
+from app.schemas.ner import ExtractedEntities
 from app.services.embedding import generate_embedding
-from app.services.ner import extract_entities
+from app.services.hybrid_ner import extract_hybrid_entities
+from app.services.location import normalize_location
 from app.services.ranking import (
     calculate_experience_score,
     calculate_final_score,
@@ -21,9 +24,62 @@ from app.services.similarity import (
     calculate_percentage_score,
 )
 
-from app.services.location import normalize_location
-
 router = APIRouter()
+
+
+def _extract_entities_for_matching(text: str) -> ExtractedEntities:
+    """
+    Extract entities for matching by using the hybrid NER pipeline.
+    """
+
+    hybrid_result = extract_hybrid_entities(text)
+    return hybrid_result["merged_entities"]
+
+
+def _build_match_evidence(
+    cv_entities: ExtractedEntities,
+    job_entities: ExtractedEntities,
+    matched_skills: list[str],
+    final_score: float,
+) -> MatchEvidence:
+    """
+    Build explainable evidence for a CV-job match.
+    """
+
+    role_overlap = sorted(
+        set(cv_entities.roles).intersection(set(job_entities.roles))
+    )
+
+    if matched_skills and role_overlap:
+        reason = (
+            "The candidate is a strong match because the CV and job posting share "
+            "important technical skills and compatible role information."
+        )
+    elif matched_skills:
+        reason = (
+            "The candidate matches the job mainly because there is a strong overlap "
+            "between the required and detected technical skills."
+        )
+    elif final_score >= 70:
+        reason = (
+            "The candidate has a good semantic match with the job posting, although "
+            "explicit skill overlap is limited."
+        )
+    else:
+        reason = (
+            "The candidate has limited evidence for this job based on the current "
+            "semantic, skill, and experience signals."
+        )
+
+    return MatchEvidence(
+        matched_skills=matched_skills,
+        cv_roles=cv_entities.roles,
+        job_roles=job_entities.roles,
+        cv_companies=cv_entities.companies,
+        job_companies=job_entities.companies,
+        cv_education=cv_entities.education,
+        reason=reason,
+    )
 
 
 def _build_match_result(
@@ -31,6 +87,8 @@ def _build_match_result(
     job_text: str,
     candidate_years_experience: float | None = None,
     required_years_experience: float | None = None,
+    cv_entities_override: ExtractedEntities | None = None,
+    job_entities_override: ExtractedEntities | None = None,
 ) -> MatchResult:
     """
     Build a semantic and explainable match result for one CV-job pair.
@@ -42,8 +100,8 @@ def _build_match_result(
     similarity_score = calculate_cosine_similarity(cv_embedding, job_embedding)
     semantic_score = calculate_percentage_score(similarity_score)
 
-    cv_entities = extract_entities(cv_text)
-    job_entities = extract_entities(job_text)
+    cv_entities = cv_entities_override or _extract_entities_for_matching(cv_text)
+    job_entities = job_entities_override or _extract_entities_for_matching(job_text)
 
     matched_skills = sorted(
         set(cv_entities.skills).intersection(set(job_entities.skills))
@@ -65,11 +123,19 @@ def _build_match_result(
         experience_score=experience_score,
     )
 
+    evidence = _build_match_evidence(
+        cv_entities=cv_entities,
+        job_entities=job_entities,
+        matched_skills=matched_skills,
+        final_score=final_score,
+    )
+
     explanation = (
         f"The CV and job posting have a semantic score of {semantic_score}%. "
         f"The skill match score is {skill_score}%, and the experience score is "
         f"{experience_score}%. The final weighted ranking score is {final_score}%. "
-        f"Matched skills: {', '.join(matched_skills) if matched_skills else 'none'}."
+        f"Matched skills: {', '.join(matched_skills) if matched_skills else 'none'}. "
+        f"Evidence summary: {evidence.reason}"
     )
 
     return MatchResult(
@@ -80,6 +146,7 @@ def _build_match_result(
         final_score=final_score,
         matched_skills=matched_skills,
         explanation=explanation,
+        evidence=evidence,
         cv_entities=cv_entities,
         job_entities=job_entities,
     )
@@ -136,14 +203,16 @@ async def match_job_with_stored_cvs(
             normalized_filter_location = normalize_location(location)
             normalized_cv_location = normalize_location(cv.get("location"))
 
-        if normalized_cv_location != normalized_filter_location:
-            continue
+            if normalized_cv_location != normalized_filter_location:
+                continue
 
         match_result = _build_match_result(
             cv_text=cv["raw_text"],
             job_text=selected_job["description"],
             candidate_years_experience=cv["years_experience"],
             required_years_experience=selected_job["min_years_experience"],
+            cv_entities_override=cv["extracted_entities"],
+            job_entities_override=selected_job["extracted_entities"],
         )
 
         if min_final_score is not None and match_result.final_score < min_final_score:
@@ -161,6 +230,7 @@ async def match_job_with_stored_cvs(
                 "experience_score": match_result.experience_score,
                 "matched_skills": match_result.matched_skills,
                 "explanation": match_result.explanation,
+                "evidence": match_result.evidence,
             }
         )
 
@@ -169,16 +239,17 @@ async def match_job_with_stored_cvs(
         reverse=True,
     )
 
-    return {
-        "job_id": selected_job["id"],
-        "job_title": selected_job["title"],
-        "top_k": top_k,
-        "filters": {
+    return TopKMatchResponse(
+        job_id=selected_job["id"],
+        job_title=selected_job["title"],
+        top_k=top_k,
+        filters={
             "location": location,
             "min_final_score": min_final_score,
         },
-        "results": ranked_results[:top_k],
-    }
+        results=ranked_results[:top_k],
+    )
+
 
 @router.post("/match/cv/{cv_id}", response_model=CVTopKMatchResponse)
 async def match_cv_with_stored_jobs(
@@ -223,6 +294,8 @@ async def match_cv_with_stored_jobs(
             job_text=job["description"],
             candidate_years_experience=selected_cv["years_experience"],
             required_years_experience=job["min_years_experience"],
+            cv_entities_override=selected_cv["extracted_entities"],
+            job_entities_override=job["extracted_entities"],
         )
 
         if min_final_score is not None and match_result.final_score < min_final_score:
@@ -240,6 +313,7 @@ async def match_cv_with_stored_jobs(
                 "experience_score": match_result.experience_score,
                 "matched_skills": match_result.matched_skills,
                 "explanation": match_result.explanation,
+                "evidence": match_result.evidence,
             }
         )
 

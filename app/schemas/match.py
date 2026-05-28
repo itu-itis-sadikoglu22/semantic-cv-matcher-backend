@@ -13,6 +13,18 @@ class MatchRequest(BaseModel):
     candidate_years_experience: float | None = Field(default=None, ge=0)
     required_years_experience: float | None = Field(default=None, ge=0)
 
+class MatchEvidence(BaseModel):
+    """
+    Explainable evidence used for CV-job matching.
+    """
+
+    matched_skills: list[str]
+    cv_roles: list[str]
+    job_roles: list[str]
+    cv_companies: list[str]
+    job_companies: list[str]
+    cv_education: list[str]
+    reason: str
 
 class MatchResult(BaseModel):
     """
@@ -28,6 +40,7 @@ class MatchResult(BaseModel):
     explanation: str
     cv_entities: ExtractedEntities
     job_entities: ExtractedEntities
+    evidence: MatchEvidence
 
 
 class MatchResponse(BaseModel):
@@ -52,6 +65,7 @@ class TopKMatchItem(BaseModel):
     experience_score: float
     matched_skills: list[str]
     explanation: str
+    evidence: MatchEvidence
 
 
 class MatchFilters(BaseModel):
