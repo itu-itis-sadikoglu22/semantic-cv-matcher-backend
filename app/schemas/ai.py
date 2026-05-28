@@ -128,3 +128,20 @@ class BERTurkEmbeddingResponse(BaseModel):
     embedding_dimension: int
     embedding_preview: list[float]
     note: str
+
+class EmbeddingComparisonRequest(BaseModel):
+    text: str = Field(..., min_length=20)
+
+
+class EmbeddingModelPreview(BaseModel):
+    model_name: str
+    model_type: str
+    embedding_dimension: int
+    embedding_preview: list[float]
+
+
+class EmbeddingComparisonResponse(BaseModel):
+    input_preview: str
+    sentence_transformer: EmbeddingModelPreview
+    berturk: EmbeddingModelPreview
+    explanation: str

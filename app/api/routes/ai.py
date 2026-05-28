@@ -11,8 +11,11 @@ from app.schemas.ai import (
     NERComparisonResponse,
     BERTurkEmbeddingRequest,
     BERTurkEmbeddingResponse,
+    EmbeddingComparisonRequest,
+    EmbeddingComparisonResponse,
+    EmbeddingModelPreview,
 )
-from app.services.embedding import EMBEDDING_MODEL_NAME
+from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
     TURKISH_NER_MODEL_NAME,
     extract_transformer_ner_entities,
@@ -228,5 +231,37 @@ async def generate_experimental_berturk_embedding(
             "This endpoint is experimental. The main matching pipeline currently "
             "uses the sentence-transformer embedding model, while BERTurk is added "
             "for Turkish representation experiments and comparison."
+        ),
+    )
+
+
+@router.post("/ai/embedding-comparison", response_model=EmbeddingComparisonResponse)
+async def compare_embedding_models(request: EmbeddingComparisonRequest):
+    """
+    Compare sentence-transformer and BERTurk embeddings for the same input text.
+    """
+
+    sentence_transformer_embedding = generate_embedding(request.text)
+    berturk_embedding = generate_berturk_embedding(request.text)
+
+    return EmbeddingComparisonResponse(
+        input_preview=create_text_preview(request.text),
+        sentence_transformer=EmbeddingModelPreview(
+            model_name=EMBEDDING_MODEL_NAME,
+            model_type="sentence-transformer",
+            embedding_dimension=len(sentence_transformer_embedding),
+            embedding_preview=sentence_transformer_embedding[:10],
+        ),
+        berturk=EmbeddingModelPreview(
+            model_name=BERTURK_MODEL_NAME,
+            model_type="berturk-transformer-encoder",
+            embedding_dimension=len(berturk_embedding),
+            embedding_preview=berturk_embedding[:10],
+        ),
+        explanation=(
+            "The sentence-transformer model is currently used in the main matching "
+            "pipeline because it is optimized for semantic similarity. BERTurk is "
+            "included as an experimental Turkish transformer encoder for representation "
+            "comparison and future AI improvements."
         ),
     )
