@@ -27,7 +27,7 @@ TECHNICAL_TERMS_TO_EXCLUDE_FROM_COMPANIES = {
     "veritabani tasarimi",
     "servis",
     "servis geliştirme",
-        "java",
+    "java",
     "spring boot",
     "kubernetes",
     "microservice",
@@ -44,6 +44,7 @@ TECHNICAL_TERMS_TO_EXCLUDE_FROM_COMPANIES = {
     "html",
     "css",
     "typescript",
+    
 }
 
 

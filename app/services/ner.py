@@ -21,7 +21,7 @@ SKILL_KEYWORDS = [
     "C++",
     "Git",
     "REST API",
-        "java",
+    "java",
     "spring boot",
     "kubernetes",
     "microservice",
@@ -43,7 +43,68 @@ SKILL_KEYWORDS = [
     "linux",
     "html",
     "css",
+    "js",
+    "node js",
+    "postgres",
+    "postgres sql",
+    "k8s",
+    "restful api",
+    "micro-service",
+    "micro services",
 ]
+
+
+SKILL_NORMALIZATION_MAP = {
+    "js": "JavaScript",
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+    "node.js": "Node.js",
+    "nodejs": "Node.js",
+    "node js": "Node.js",
+    "postgres": "PostgreSQL",
+    "postgresql": "PostgreSQL",
+    "postgres sql": "PostgreSQL",
+    "sql": "SQL",
+    "mysql": "MySQL",
+    "mongodb": "MongoDB",
+    "redis": "Redis",
+    "k8s": "Kubernetes",
+    "kubernetes": "Kubernetes",
+    "rest api": "REST API",
+    "restful api": "REST API",
+    "api": "API",
+    "microservice": "Microservice",
+    "microservices": "Microservice",
+    "micro-service": "Microservice",
+    "micro services": "Microservice",
+    "python": "Python",
+    "java": "Java",
+    "spring boot": "Spring Boot",
+    "fastapi": "FastAPI",
+    "docker": "Docker",
+    "git": "Git",
+    "github": "GitHub",
+    "react": "React",
+    "django": "Django",
+    "flask": "Flask",
+    "linux": "Linux",
+    "html": "HTML",
+    "css": "CSS",
+}
+
+
+def normalize_skill_name(skill: str) -> str:
+    """
+    Normalize skill aliases into a consistent display name.
+    """
+
+    normalized_skill = skill.strip().lower()
+
+    return SKILL_NORMALIZATION_MAP.get(
+        normalized_skill,
+        skill.strip(),
+    )
+
 
 ROLE_KEYWORDS = [
     "Backend Developer",
@@ -111,7 +172,13 @@ def extract_entities(text: str) -> ExtractedEntities:
     Extract structured entities from raw CV or job posting text.
     """
 
-    skills = _find_keyword_matches(text, SKILL_KEYWORDS)
+    raw_skills = _find_keyword_matches(text, SKILL_KEYWORDS)
+    skills = sorted(
+        set(
+            normalize_skill_name(skill)
+            for skill in raw_skills
+        )
+    )
     roles = _find_keyword_matches(text, ROLE_KEYWORDS)
     education = _find_keyword_matches(text, EDUCATION_KEYWORDS)
     dates = _extract_dates(text)
