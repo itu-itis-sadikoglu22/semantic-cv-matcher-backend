@@ -83,6 +83,7 @@ async def list_jobs(
     location: str | None = Query(default=None),
     skill: str | None = Query(default=None),
     seniority: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
@@ -123,6 +124,20 @@ async def list_jobs(
             and job["seniority"].strip().lower() == normalized_seniority
         ]
 
+
+    if search:
+        normalized_search = search.strip().lower()
+
+        filtered_jobs = [
+            job
+            for job in filtered_jobs
+            if normalized_search in job["title"].lower()
+            or (
+                job.get("company_name") is not None
+                and normalized_search in job["company_name"].lower()
+            )
+            or normalized_search in job["description"].lower()
+        ]
 
 
     paginated_jobs = filtered_jobs[offset : offset + limit]

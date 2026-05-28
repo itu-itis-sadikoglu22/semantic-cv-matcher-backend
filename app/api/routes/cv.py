@@ -82,6 +82,7 @@ async def create_cv(cv_data: CVCreate):
 async def list_cvs(
     location: str | None = Query(default=None),
     skill: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
@@ -111,6 +112,21 @@ async def list_cvs(
                 for cv_skill in cv["extracted_entities"].skills
             )
         ]
+
+    if search:
+        normalized_search = search.strip().lower()
+
+        filtered_cvs = [
+            cv
+            for cv in filtered_cvs
+            if normalized_search in cv["candidate_name"].lower()
+            or (
+                cv.get("email") is not None
+                and normalized_search in cv["email"].lower()
+            )
+            or normalized_search in cv["raw_text"].lower()
+        ]
+
 
     paginated_cvs = filtered_cvs[offset : offset + limit]
 
