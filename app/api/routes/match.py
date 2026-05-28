@@ -42,6 +42,36 @@ def _get_recommendation_level(final_score: float) -> str:
 
     return "WEAK_MATCH"
 
+def _build_match_summary(
+    recommendation_level: str,
+    matched_skills: list[str],
+    experience_score: float,
+) -> str:
+    """
+    Build a short user-facing summary for the match result.
+    """
+
+    skill_count = len(matched_skills)
+
+    if experience_score == 100:
+        experience_text = "meets the experience requirement"
+    elif experience_score >= 50:
+        experience_text = "partially meets the experience requirement"
+    else:
+        experience_text = "does not fully meet the experience requirement"
+
+    if skill_count == 0:
+        skill_text = "does not explicitly match any detected required skills"
+    elif skill_count == 1:
+        skill_text = "matches 1 detected required skill"
+    else:
+        skill_text = f"matches {skill_count} detected required skills"
+
+    return (
+        f"{recommendation_level}: The candidate {skill_text} and "
+        f"{experience_text}."
+    )
+
 
 def _extract_entities_for_matching(text: str) -> ExtractedEntities:
     """
@@ -141,6 +171,12 @@ def _build_match_result(
     
     recommendation_level = _get_recommendation_level(final_score)
 
+    summary = _build_match_summary(
+    recommendation_level=recommendation_level,
+    matched_skills=matched_skills,
+    experience_score=experience_score,
+)
+
     evidence = _build_match_evidence(
         cv_entities=cv_entities,
         job_entities=job_entities,
@@ -168,6 +204,7 @@ def _build_match_result(
         cv_entities=cv_entities,
         job_entities=job_entities,
         recommendation_level=recommendation_level,
+        summary=summary,
     )
 
 
@@ -245,6 +282,7 @@ async def match_job_with_stored_cvs(
                 "job_title": selected_job["title"],
                 "final_score": match_result.final_score,
                 "recommendation_level": match_result.recommendation_level,
+                "summary": match_result.summary,
                 "semantic_score": match_result.semantic_score,
                 "skill_score": match_result.skill_score,
                 "experience_score": match_result.experience_score,
@@ -329,6 +367,7 @@ async def match_cv_with_stored_jobs(
                 "job_title": job["title"],
                 "final_score": match_result.final_score,
                 "recommendation_level": match_result.recommendation_level,
+                "summary": match_result.summary,
                 "semantic_score": match_result.semantic_score,
                 "skill_score": match_result.skill_score,
                 "experience_score": match_result.experience_score,

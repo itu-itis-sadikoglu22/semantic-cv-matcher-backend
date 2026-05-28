@@ -37,6 +37,7 @@ class MatchResult(BaseModel):
     experience_score: float
     final_score: float
     recommendation_level: str
+    summary: str
     matched_skills: list[str]
     explanation: str
     cv_entities: ExtractedEntities
@@ -62,6 +63,7 @@ class TopKMatchItem(BaseModel):
     job_title: str
     final_score: float
     recommendation_level: str
+    summary: str
     semantic_score: float
     skill_score: float
     experience_score: float
