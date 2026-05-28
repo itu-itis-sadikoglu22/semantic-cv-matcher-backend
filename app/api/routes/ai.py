@@ -51,64 +51,81 @@ def _calculate_entities_added_by_hybrid(
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models():
     """
-    Return information about the AI/NLP components used by the system.
+    Return the AI/NLP model registry used in the project.
     """
 
     return AIModelsResponse(
         project_ai_summary=(
-            "The backend uses transformer-based sentence embeddings for semantic "
-            "CV-job matching, rule-based domain entity extraction for the current "
-            "NER fallback, an experimental transformer-based Turkish NER endpoint, "
-            "and explainable ranking based on semantic similarity, skill overlap, "
-            "and experience compatibility."
+            "This backend uses a hybrid AI/NLP architecture for Turkish CV and "
+            "job matching. It combines rule-based entity extraction, transformer-based "
+            "Turkish NER, multilingual sentence embeddings, semantic similarity, "
+            "and explainable ranking."
         ),
         models=[
             AIModelInfo(
                 name=EMBEDDING_MODEL_NAME,
-                type="Transformer sentence embedding model",
+                type="sentence-transformer",
                 purpose=(
-                    "Generates dense vector representations for CV and job posting "
-                    "texts. These vectors are used to calculate semantic similarity."
+                    "Generates dense multilingual embeddings for CV and job texts. "
+                    "Used for semantic similarity and ranking."
                 ),
-                status="Implemented",
-            ),
-            AIModelInfo(
-                name="Rule-based Turkish CV/Job Entity Extractor",
-                type="NER fallback / domain entity extractor",
-                purpose=(
-                    "Extracts skills, roles, dates, and education-related entities "
-                    "from Turkish CV and job posting texts using keyword and pattern "
-                    "matching."
-                ),
-                status="Implemented",
-            ),
-            AIModelInfo(
-                name="Semantic + Skill + Experience Ranking",
-                type="Explainable ranking logic",
-                purpose=(
-                    "Combines semantic similarity score, skill overlap score, and "
-                    "experience compatibility score into a final ranking score."
-                ),
-                status="Implemented",
+                status="active",
             ),
             AIModelInfo(
                 name=TURKISH_NER_MODEL_NAME,
-                type="Transformer token classification model",
+                type="transformer-token-classification",
                 purpose=(
-                    "Provides an experimental transformer-based Turkish NER layer "
-                    "for extracting named entities from CV and job posting texts."
+                    "Extracts Turkish named entities such as organizations and locations. "
+                    "Used inside the hybrid NER pipeline."
                 ),
-                status="Experimental",
+                status="active",
+            ),
+            AIModelInfo(
+                name="Rule-based CV/Job Entity Extractor",
+                type="rule-based-nlp",
+                purpose=(
+                    "Extracts domain-specific CV/job entities such as skills, roles, "
+                    "education, experience durations and technical keywords."
+                ),
+                status="active",
+            ),
+            AIModelInfo(
+                name="Hybrid NER Pipeline",
+                type="hybrid-ai-pipeline",
+                purpose=(
+                    "Combines rule-based extraction with transformer-based Turkish NER. "
+                    "Used during CV ingestion, job ingestion, file upload and update operations."
+                ),
+                status="active",
+            ),
+            AIModelInfo(
+                name="dbmdz/bert-base-turkish-cased",
+                type="berturk-transformer-encoder",
+                purpose=(
+                    "Planned experimental Turkish BERT encoder for comparing Turkish text "
+                    "representations with the current sentence-transformer embedding model."
+                ),
+                status="planned",
+            ),
+            AIModelInfo(
+                name="PostgreSQL pgvector with HNSW",
+                type="vector-database-search",
+                purpose=(
+                    "Planned storage and approximate nearest neighbor search layer for "
+                    "persistent semantic CV-job matching."
+                ),
+                status="planned",
             ),
         ],
         planned_improvements=[
-            "Merge transformer NER outputs with rule-based domain extraction.",
-            "Add confidence/source information for extracted entities.",
-            "Persist embeddings in PostgreSQL with pgvector.",
-            "Use vector similarity search for scalable retrieval.",
+            "Add experimental BERTurk embedding endpoint.",
+            "Add sentence-transformer vs BERTurk comparison endpoint.",
+            "Persist CV and job embeddings in PostgreSQL with pgvector.",
+            "Add HNSW index for faster vector similarity search.",
+            "Improve skill, role, education and experience extraction.",
+            "Add AI evaluation examples for final project demo.",
         ],
     )
-
 
 @router.post("/ai/transformer-ner/extract", response_model=TransformerNERResponse)
 async def extract_entities_with_transformer(request: TransformerNERRequest):
