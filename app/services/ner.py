@@ -144,10 +144,30 @@ EDUCATION_KEYWORDS = [
     "Bilgisayar Mühendisliği",
     "Software Engineering",
     "Yazılım Mühendisliği",
+    "Electrical Engineering",
+    "Elektrik Elektronik Mühendisliği",
+    "Electronics Engineering",
+    "Industrial Engineering",
+    "Endüstri Mühendisliği",
+    "Artificial Intelligence Engineering",
+    "Yapay Zeka Mühendisliği",
+    "Data Science",
+    "Veri Bilimi",
+    "Information Systems",
+    "Bilgi Sistemleri",
+    "Management Information Systems",
+    "Yönetim Bilişim Sistemleri",
     "B.Sc.",
     "M.Sc.",
+    "PhD",
+    "Bachelor",
+    "Bachelor's Degree",
+    "Master",
+    "Master's Degree",
+    "Doctorate",
     "Lisans",
     "Yüksek Lisans",
+    "Doktora",
 ]
 
 
@@ -165,6 +185,22 @@ def _find_keyword_matches(text: str, keywords: list[str]) -> list[str]:
             matches.append(keyword)
 
     return sorted(set(matches))
+
+
+def _clean_education_matches(values: list[str]) -> list[str]:
+    """
+    Clean generic education matches when a more specific degree phrase exists.
+    """
+
+    unique_values = set(value.strip() for value in values if value.strip())
+
+    if "Bachelor's Degree" in unique_values and "Bachelor" in unique_values:
+        unique_values.remove("Bachelor")
+
+    if "Master's Degree" in unique_values and "Master" in unique_values:
+        unique_values.remove("Master")
+
+    return sorted(unique_values)
 
 
 def _extract_dates(text: str) -> list[str]:
@@ -226,7 +262,8 @@ def extract_entities(text: str) -> ExtractedEntities:
         )
     )
     roles = _find_keyword_matches(text, ROLE_KEYWORDS)
-    education = _find_keyword_matches(text, EDUCATION_KEYWORDS)
+    raw_education = _find_keyword_matches(text, EDUCATION_KEYWORDS)
+    education = _clean_education_matches(raw_education)
     dates = _extract_dates(text)
 
     return ExtractedEntities(
