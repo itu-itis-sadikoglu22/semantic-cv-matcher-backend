@@ -169,14 +169,27 @@ def _find_keyword_matches(text: str, keywords: list[str]) -> list[str]:
 
 def _extract_dates(text: str) -> list[str]:
     """
-    Extract simple date and duration expressions from Turkish or English text.
+    Extract simple date and experience duration expressions from Turkish or English text.
     """
 
     date_patterns = [
         r"\b\d{4}\s*-\s*\d{4}\b",
         r"\b\d{4}\b",
+
+        # Turkish experience expressions
         r"\b\d+\s*yıl\b",
+        r"\b\d+\s*\+\s*yıl\b",
+        r"\ben az\s+\d+\s*yıl\b",
+        r"\bminimum\s+\d+\s*yıl\b",
+        r"\b\d+\s*yıl\s*üzeri\b",
+        r"\b\d+\s*yıldan\s*fazla\b",
+
+        # English experience expressions
         r"\b\d+\s*years?\b",
+        r"\b\d+\s*\+\s*years?\b",
+        r"\bat least\s+\d+\s*years?\b",
+        r"\bminimum\s+\d+\s*years?\b",
+        r"\bmore than\s+\d+\s*years?\b",
     ]
 
     dates = []
@@ -184,7 +197,20 @@ def _extract_dates(text: str) -> list[str]:
     for pattern in date_patterns:
         dates.extend(re.findall(pattern, text, flags=re.IGNORECASE))
 
-    return sorted(set(dates))
+    unique_dates = sorted(set(date.strip() for date in dates))
+
+    filtered_dates = []
+
+    for date in unique_dates:
+        is_part_of_longer_expression = any(
+            date != other_date and date.lower() in other_date.lower()
+            for other_date in unique_dates
+        )
+
+        if not is_part_of_longer_expression:
+            filtered_dates.append(date)
+
+    return filtered_dates
 
 
 def extract_entities(text: str) -> ExtractedEntities:
