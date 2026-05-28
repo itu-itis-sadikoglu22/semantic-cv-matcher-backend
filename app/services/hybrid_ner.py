@@ -18,6 +18,15 @@ TECHNICAL_TERMS_TO_EXCLUDE_FROM_COMPANIES = {
     "react",
     "javascript",
     "git",
+        "rest api",
+    "rest ap",
+    "api",
+    "backend servis",
+    "backend servis geliştirme",
+    "veritabani",
+    "veritabani tasarimi",
+    "servis",
+    "servis geliştirme",
 }
 
 
@@ -42,6 +51,11 @@ def _is_valid_company_candidate(value: str, score: float) -> bool:
 
     cleaned_value = value.strip()
     normalized_value = cleaned_value.lower()
+    normalized_value = (
+    normalized_value
+    .replace("ı", "i")
+    .replace("İ", "i")
+)
 
     if not cleaned_value:
         return False
@@ -60,6 +74,11 @@ def _is_valid_company_candidate(value: str, score: float) -> bool:
 
     # Ignore known technical terms that are skills, not companies.
     if normalized_value in TECHNICAL_TERMS_TO_EXCLUDE_FROM_COMPANIES:
+        return False
+    if any(
+    technical_term in normalized_value
+    for technical_term in TECHNICAL_TERMS_TO_EXCLUDE_FROM_COMPANIES
+):
         return False
 
     # Ignore single generic words that are usually not organizations in this domain.
