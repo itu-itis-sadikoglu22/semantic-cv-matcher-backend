@@ -2,7 +2,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.schemas.ai import AIExtractionMetadata
 from app.schemas.common import MessageResponse
-from app.schemas.cv import CVCreate, CVResponse
+from app.schemas.cv import CVCreate, CVResponse, CVUpdate 
 from app.services.document_parser import extract_text_from_file
 from app.services.hybrid_ner import extract_hybrid_entities
 from app.services.ingestion import create_text_preview, normalize_text
@@ -161,6 +161,61 @@ async def get_cv_by_id(cv_id: int):
             status_code=404,
             detail="CV record not found.",
         )
+
+    return CVResponse(
+        id=selected_cv["id"],
+        candidate_name=selected_cv["candidate_name"],
+        email=selected_cv["email"],
+        phone=selected_cv["phone"],
+        location=selected_cv["location"],
+        years_experience=selected_cv["years_experience"],
+        raw_text_preview=create_text_preview(selected_cv["raw_text"]),
+        extracted_entities=selected_cv["extracted_entities"],
+        ai_extraction_metadata=selected_cv.get("ai_extraction_metadata"),
+    )
+
+@router.patch("/cvs/{cv_id}", response_model=CVResponse)
+async def update_cv_by_id(cv_id: int, cv_update: CVUpdate):
+    """
+    Partially update a single CV record by ID.
+    """
+
+    selected_cv = next(
+        (cv for cv in cv_storage if cv["id"] == cv_id),
+        None,
+    )
+
+    if selected_cv is None:
+        raise HTTPException(
+            status_code=404,
+            detail="CV record not found.",
+        )
+
+    if cv_update.candidate_name is not None:
+        selected_cv["candidate_name"] = cv_update.candidate_name
+
+    if cv_update.email is not None:
+        selected_cv["email"] = cv_update.email
+
+    if cv_update.phone is not None:
+        selected_cv["phone"] = cv_update.phone
+
+    if cv_update.location is not None:
+        selected_cv["location"] = cv_update.location
+
+    if cv_update.years_experience is not None:
+        selected_cv["years_experience"] = cv_update.years_experience
+
+    if cv_update.raw_text is not None:
+        normalized_text = normalize_text(cv_update.raw_text)
+
+        hybrid_result = extract_hybrid_entities(normalized_text)
+        extracted_entities = hybrid_result["merged_entities"]
+        ai_extraction_metadata = build_ai_extraction_metadata(hybrid_result)
+
+        selected_cv["raw_text"] = normalized_text
+        selected_cv["extracted_entities"] = extracted_entities
+        selected_cv["ai_extraction_metadata"] = ai_extraction_metadata
 
     return CVResponse(
         id=selected_cv["id"],

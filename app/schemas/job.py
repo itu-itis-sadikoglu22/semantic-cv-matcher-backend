@@ -15,6 +15,19 @@ class JobCreate(BaseModel):
     min_years_experience: float | None = Field(default=None, ge=0)
 
 
+class JobUpdate(BaseModel):
+    """
+    Request schema for partially updating a job posting.
+    """
+
+    title: str | None = None
+    company_name: str | None = None
+    description: str | None = None
+    location: str | None = None
+    seniority: str | None = None
+    min_years_experience: float | None = Field(default=None, ge=0)
+
+
 class JobResponse(BaseModel):
     """
     Response schema returned after job posting ingestion.

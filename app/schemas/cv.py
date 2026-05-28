@@ -15,6 +15,19 @@ class CVCreate(BaseModel):
     years_experience: float | None = Field(default=None, ge=0)
 
 
+class CVUpdate(BaseModel):
+    """
+    Request schema for partially updating a CV record.
+    """
+
+    candidate_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    raw_text: str | None = None
+    location: str | None = None
+    years_experience: float | None = Field(default=None, ge=0)
+
+
 class CVResponse(BaseModel):
     """
     Response schema returned after CV ingestion.

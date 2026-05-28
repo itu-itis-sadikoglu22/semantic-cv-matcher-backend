@@ -2,7 +2,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.schemas.ai import AIExtractionMetadata
 from app.schemas.common import MessageResponse
-from app.schemas.job import JobCreate, JobResponse
+from app.schemas.job import JobCreate, JobResponse, JobUpdate
 from app.services.document_parser import extract_text_from_file
 from app.services.hybrid_ner import extract_hybrid_entities
 from app.services.ingestion import create_text_preview, normalize_text
@@ -174,6 +174,62 @@ async def get_job_by_id(job_id: int):
             status_code=404,
             detail="Job posting not found.",
         )
+
+    return JobResponse(
+        id=selected_job["id"],
+        title=selected_job["title"],
+        company_name=selected_job["company_name"],
+        location=selected_job["location"],
+        seniority=selected_job["seniority"],
+        min_years_experience=selected_job["min_years_experience"],
+        description_preview=create_text_preview(selected_job["description"]),
+        extracted_entities=selected_job["extracted_entities"],
+        ai_extraction_metadata=selected_job.get("ai_extraction_metadata"),
+    )
+
+
+@router.patch("/jobs/{job_id}", response_model=JobResponse)
+async def update_job_by_id(job_id: int, job_update: JobUpdate):
+    """
+    Partially update a single job posting by ID.
+    """
+
+    selected_job = next(
+        (job for job in job_storage if job["id"] == job_id),
+        None,
+    )
+
+    if selected_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job posting not found.",
+        )
+
+    if job_update.title is not None:
+        selected_job["title"] = job_update.title
+
+    if job_update.company_name is not None:
+        selected_job["company_name"] = job_update.company_name
+
+    if job_update.location is not None:
+        selected_job["location"] = job_update.location
+
+    if job_update.seniority is not None:
+        selected_job["seniority"] = job_update.seniority
+
+    if job_update.min_years_experience is not None:
+        selected_job["min_years_experience"] = job_update.min_years_experience
+
+    if job_update.description is not None:
+        normalized_description = normalize_text(job_update.description)
+
+        hybrid_result = extract_hybrid_entities(normalized_description)
+        extracted_entities = hybrid_result["merged_entities"]
+        ai_extraction_metadata = build_ai_extraction_metadata(hybrid_result)
+
+        selected_job["description"] = normalized_description
+        selected_job["extracted_entities"] = extracted_entities
+        selected_job["ai_extraction_metadata"] = ai_extraction_metadata
 
     return JobResponse(
         id=selected_job["id"],
