@@ -26,6 +26,22 @@ from app.services.similarity import (
 
 router = APIRouter()
 
+def _get_recommendation_level(final_score: float) -> str:
+    """
+    Convert final matching score into a human-readable recommendation level.
+    """
+
+    if final_score >= 85:
+        return "STRONG_MATCH"
+
+    if final_score >= 70:
+        return "GOOD_MATCH"
+
+    if final_score >= 50:
+        return "POSSIBLE_MATCH"
+
+    return "WEAK_MATCH"
+
 
 def _extract_entities_for_matching(text: str) -> ExtractedEntities:
     """
@@ -122,6 +138,8 @@ def _build_match_result(
         skill_score=skill_score,
         experience_score=experience_score,
     )
+    
+    recommendation_level = _get_recommendation_level(final_score)
 
     evidence = _build_match_evidence(
         cv_entities=cv_entities,
@@ -149,6 +167,7 @@ def _build_match_result(
         evidence=evidence,
         cv_entities=cv_entities,
         job_entities=job_entities,
+        recommendation_level=recommendation_level,
     )
 
 
@@ -225,6 +244,7 @@ async def match_job_with_stored_cvs(
                 "job_id": selected_job["id"],
                 "job_title": selected_job["title"],
                 "final_score": match_result.final_score,
+                "recommendation_level": match_result.recommendation_level,
                 "semantic_score": match_result.semantic_score,
                 "skill_score": match_result.skill_score,
                 "experience_score": match_result.experience_score,
@@ -308,6 +328,7 @@ async def match_cv_with_stored_jobs(
                 "job_id": job["id"],
                 "job_title": job["title"],
                 "final_score": match_result.final_score,
+                "recommendation_level": match_result.recommendation_level,
                 "semantic_score": match_result.semantic_score,
                 "skill_score": match_result.skill_score,
                 "experience_score": match_result.experience_score,
