@@ -96,3 +96,24 @@ class AIExtractionMetadata(BaseModel):
     status: str
     entity_source_count: int
     notes: list[str]
+
+class NERComparisonRequest(BaseModel):
+    """
+    Request schema for comparing rule-based and hybrid NER outputs.
+    """
+
+    text: str = Field(..., min_length=20)
+
+
+class NERComparisonResponse(BaseModel):
+    """
+    Response schema for comparing rule-based and hybrid NER outputs.
+    """
+
+    input_preview: str
+    rule_based_entities: ExtractedEntities
+    hybrid_entities: ExtractedEntities
+    added_by_hybrid: ExtractedEntities
+    transformer_entities: list[TransformerNEREntity]
+    entity_sources: list[EntitySourceInfo]
+    explanation: str
