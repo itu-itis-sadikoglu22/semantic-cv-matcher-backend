@@ -10,6 +10,7 @@ from app.api.routes.ner import router as ner_router
 from app.api.routes.embedding import router as embedding_router
 from app.api.routes.match import router as match_router
 from app.api.routes.ai import router as ai_router
+from app.api.routes.stats import router as stats_router
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -36,6 +37,7 @@ app.include_router(ner_router, prefix="/api", tags=["NER Extraction"])
 app.include_router(embedding_router, prefix="/api", tags=["Embedding"])
 app.include_router(match_router, prefix="/api", tags=["Matching"])
 app.include_router(ai_router, prefix="/api", tags=["AI Models"])
+app.include_router(stats_router, prefix="/api", tags=["Statistics"])
 
 @app.get("/")
 async def root():
