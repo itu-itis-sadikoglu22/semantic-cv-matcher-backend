@@ -117,3 +117,14 @@ class NERComparisonResponse(BaseModel):
     transformer_entities: list[TransformerNEREntity]
     entity_sources: list[EntitySourceInfo]
     explanation: str
+
+
+class BERTurkEmbeddingRequest(BaseModel):
+    text: str = Field(..., min_length=20)
+
+
+class BERTurkEmbeddingResponse(BaseModel):
+    model_name: str
+    embedding_dimension: int
+    embedding_preview: list[float]
+    note: str

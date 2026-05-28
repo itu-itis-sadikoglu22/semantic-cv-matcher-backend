@@ -9,6 +9,8 @@ from app.schemas.ai import (
     TransformerNERResponse,
     NERComparisonRequest,
     NERComparisonResponse,
+    BERTurkEmbeddingRequest,
+    BERTurkEmbeddingResponse,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME
 from app.services.transformer_ner import (
@@ -18,6 +20,10 @@ from app.services.transformer_ner import (
 from app.services.hybrid_ner import extract_hybrid_entities
 from app.services.ner import extract_entities
 from app.services.ingestion import create_text_preview
+from app.services.berturk_embedding import (
+    BERTURK_MODEL_NAME,
+    generate_berturk_embedding,
+)
 
 router = APIRouter()
 
@@ -202,4 +208,25 @@ async def compare_rule_based_and_hybrid_ner(request: NERComparisonRequest):
         transformer_entities=hybrid_result["transformer_entities"],
         entity_sources=hybrid_result["entity_sources"],
         explanation=explanation,
+    )
+
+@router.post("/ai/berturk-embedding", response_model=BERTurkEmbeddingResponse)
+async def generate_experimental_berturk_embedding(
+    request: BERTurkEmbeddingRequest,
+):
+    """
+    Generate an experimental BERTurk embedding for a Turkish text.
+    """
+
+    embedding = generate_berturk_embedding(request.text)
+
+    return BERTurkEmbeddingResponse(
+        model_name=BERTURK_MODEL_NAME,
+        embedding_dimension=len(embedding),
+        embedding_preview=embedding[:10],
+        note=(
+            "This endpoint is experimental. The main matching pipeline currently "
+            "uses the sentence-transformer embedding model, while BERTurk is added "
+            "for Turkish representation experiments and comparison."
+        ),
     )
