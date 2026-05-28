@@ -85,3 +85,14 @@ class HybridNERResponse(BaseModel):
     merged_entities: ExtractedEntities
     entity_sources: list[EntitySourceInfo]
     notes: list[str]
+
+
+class AIExtractionMetadata(BaseModel):
+    """
+    Metadata about the AI extraction method used during ingestion.
+    """
+
+    method: str
+    status: str
+    entity_source_count: int
+    notes: list[str]

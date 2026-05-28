@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from app.schemas.ner import ExtractedEntities
+from app.schemas.ai import AIExtractionMetadata
 
 class CVCreate(BaseModel):
     """
@@ -27,3 +28,5 @@ class CVResponse(BaseModel):
     years_experience: float | None
     raw_text_preview: str
     extracted_entities: ExtractedEntities
+
+    ai_extraction_metadata: AIExtractionMetadata | None = None

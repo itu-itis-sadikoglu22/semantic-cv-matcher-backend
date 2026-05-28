@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from app.schemas.ner import ExtractedEntities
+from app.schemas.ai import AIExtractionMetadata
 
 class JobCreate(BaseModel):
     """
@@ -27,3 +28,4 @@ class JobResponse(BaseModel):
     min_years_experience: float | None
     description_preview: str
     extracted_entities: ExtractedEntities
+    ai_extraction_metadata: AIExtractionMetadata | None = None
