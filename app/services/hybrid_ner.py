@@ -27,6 +27,23 @@ TECHNICAL_TERMS_TO_EXCLUDE_FROM_COMPANIES = {
     "veritabani tasarimi",
     "servis",
     "servis geliştirme",
+        "java",
+    "spring boot",
+    "kubernetes",
+    "microservice",
+    "microservices",
+    "redis",
+    "mysql",
+    "mongodb",
+    "node.js",
+    "nodejs",
+    "django",
+    "flask",
+    "github",
+    "linux",
+    "html",
+    "css",
+    "typescript",
 }
 
 
