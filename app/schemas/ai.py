@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.schemas.ner import ExtractedEntities
+
 
 class AIModelInfo(BaseModel):
     """
@@ -20,8 +22,6 @@ class AIModelsResponse(BaseModel):
     project_ai_summary: str
     models: list[AIModelInfo]
     planned_improvements: list[str]
-
-    from pydantic import Field
 
 
 class TransformerNERRequest(BaseModel):
@@ -53,8 +53,6 @@ class TransformerNERResponse(BaseModel):
     entities: list[TransformerNEREntity]
     error_message: str | None = None
 
-from app.schemas.ner import ExtractedEntities
-
 
 class HybridNERRequest(BaseModel):
     """
@@ -62,6 +60,17 @@ class HybridNERRequest(BaseModel):
     """
 
     text: str = Field(..., min_length=20)
+
+
+class EntitySourceInfo(BaseModel):
+    """
+    Explains where an extracted entity came from.
+    """
+
+    text: str
+    category: str
+    source: str
+    confidence: float
 
 
 class HybridNERResponse(BaseModel):
@@ -74,4 +83,5 @@ class HybridNERResponse(BaseModel):
     rule_based_entities: ExtractedEntities
     transformer_entities: list[TransformerNEREntity]
     merged_entities: ExtractedEntities
+    entity_sources: list[EntitySourceInfo]
     notes: list[str]

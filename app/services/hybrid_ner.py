@@ -69,6 +69,26 @@ def _is_valid_company_candidate(value: str, score: float) -> bool:
     return True
 
 
+def _add_rule_based_sources(
+    entity_sources: list[dict],
+    values: list[str],
+    category: str,
+):
+    """
+    Add rule-based entity source metadata.
+    """
+
+    for value in values:
+        entity_sources.append(
+            {
+                "text": value,
+                "category": category,
+                "source": "rule_based",
+                "confidence": 1.0,
+            }
+        )
+
+
 def extract_hybrid_entities(text: str) -> dict:
     """
     Combine rule-based domain extraction with transformer-based NER.
@@ -99,8 +119,8 @@ def extract_hybrid_entities(text: str) -> dict:
             f"Transformer NER could not be executed. Fallback reason: {error}"
         )
 
-    transformer_companies = [
-        entity["text"]
+    valid_transformer_companies = [
+        entity
         for entity in transformer_entities
         if entity["label"].upper() in {"ORG", "ORGANIZATION"}
         and _is_valid_company_candidate(
@@ -109,20 +129,72 @@ def extract_hybrid_entities(text: str) -> dict:
         )
     ]
 
+    transformer_company_names = [
+        entity["text"]
+        for entity in valid_transformer_companies
+    ]
+
     merged_entities = ExtractedEntities(
         skills=_unique_sorted(rule_based_entities.skills),
         roles=_unique_sorted(rule_based_entities.roles),
         companies=_unique_sorted(
-            rule_based_entities.companies + transformer_companies
+            rule_based_entities.companies + transformer_company_names
         ),
         dates=_unique_sorted(rule_based_entities.dates),
         education=_unique_sorted(rule_based_entities.education),
     )
+
+    entity_sources = []
+
+    _add_rule_based_sources(
+        entity_sources=entity_sources,
+        values=merged_entities.skills,
+        category="skills",
+    )
+
+    _add_rule_based_sources(
+        entity_sources=entity_sources,
+        values=merged_entities.roles,
+        category="roles",
+    )
+
+    _add_rule_based_sources(
+        entity_sources=entity_sources,
+        values=merged_entities.dates,
+        category="dates",
+    )
+
+    _add_rule_based_sources(
+        entity_sources=entity_sources,
+        values=merged_entities.education,
+        category="education",
+    )
+
+    for company in rule_based_entities.companies:
+        entity_sources.append(
+            {
+                "text": company,
+                "category": "companies",
+                "source": "rule_based",
+                "confidence": 1.0,
+            }
+        )
+
+    for entity in valid_transformer_companies:
+        entity_sources.append(
+            {
+                "text": entity["text"],
+                "category": "companies",
+                "source": "transformer_ner",
+                "confidence": entity["score"],
+            }
+        )
 
     return {
         "status": transformer_status,
         "rule_based_entities": rule_based_entities,
         "transformer_entities": transformer_entities,
         "merged_entities": merged_entities,
+        "entity_sources": entity_sources,
         "notes": notes,
     }

@@ -120,5 +120,6 @@ async def extract_entities_with_hybrid_ner(request: HybridNERRequest):
         rule_based_entities=hybrid_result["rule_based_entities"],
         transformer_entities=hybrid_result["transformer_entities"],
         merged_entities=hybrid_result["merged_entities"],
+        entity_sources=hybrid_result["entity_sources"],
         notes=hybrid_result["notes"],
     )
