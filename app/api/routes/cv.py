@@ -5,7 +5,7 @@ from app.schemas.cv import CVCreate, CVResponse
 from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
 from app.services.location import normalize_location
-from app.services.ner import extract_entities
+from app.services.hybrid_ner import extract_hybrid_entities
 
 router = APIRouter()
 
@@ -28,7 +28,8 @@ async def create_cv(cv_data: CVCreate):
     """
 
     normalized_text = normalize_text(cv_data.raw_text)
-    extracted_entities = extract_entities(normalized_text)
+    hybrid_result = extract_hybrid_entities(normalized_text)
+    extracted_entities = hybrid_result["merged_entities"]
 
     cv_id = get_next_cv_id()
 
@@ -181,7 +182,8 @@ async def upload_cv_file(
             detail="The uploaded file does not contain readable text.",
         )
 
-    extracted_entities = extract_entities(normalized_text)
+    hybrid_result = extract_hybrid_entities(normalized_text)
+    extracted_entities = hybrid_result["merged_entities"]
 
     cv_id = get_next_cv_id()
     

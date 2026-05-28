@@ -3,7 +3,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.schemas.job import JobCreate, JobResponse
 from app.services.document_parser import extract_text_from_file
 from app.services.ingestion import create_text_preview, normalize_text
-from app.services.ner import extract_entities
+from app.services.hybrid_ner import extract_hybrid_entities
 from app.schemas.common import MessageResponse
 from app.services.location import normalize_location
 
@@ -29,7 +29,8 @@ async def create_job(job_data: JobCreate):
     """
 
     normalized_description = normalize_text(job_data.description)
-    extracted_entities = extract_entities(normalized_description)
+    hybrid_result = extract_hybrid_entities(normalized_description)
+    extracted_entities = hybrid_result["merged_entities"]
 
     job_id = get_next_job_id()
 
@@ -174,7 +175,8 @@ async def upload_job_file(
             detail="The uploaded file does not contain readable text.",
         )
 
-    extracted_entities = extract_entities(normalized_description)
+    hybrid_result = extract_hybrid_entities(normalized_description)
+    extracted_entities = hybrid_result["merged_entities"]
 
     job_id = get_next_job_id()
 
