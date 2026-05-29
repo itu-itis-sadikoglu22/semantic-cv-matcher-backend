@@ -152,6 +152,14 @@ class AIMatchingEvaluationRequest(BaseModel):
     candidate_years_experience: float | None = Field(default=None, ge=0)
     required_years_experience: float | None = Field(default=None, ge=0)
 
+class AIScoreBreakdown(BaseModel):
+    semantic_weight: float
+    skill_weight: float
+    experience_weight: float
+    semantic_contribution: float
+    skill_contribution: float
+    experience_contribution: float
+
 
 class AIMatchingEvaluationResponse(BaseModel):
     semantic_score: float
@@ -166,3 +174,5 @@ class AIMatchingEvaluationResponse(BaseModel):
     strengths: list[str]
     weaknesses: list[str]
     ai_comment: str
+    score_breakdown: AIScoreBreakdown
+

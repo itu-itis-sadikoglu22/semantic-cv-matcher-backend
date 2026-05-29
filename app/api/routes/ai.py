@@ -16,6 +16,7 @@ from app.schemas.ai import (
     EmbeddingModelPreview,
     AIMatchingEvaluationRequest,
     AIMatchingEvaluationResponse,
+    AIScoreBreakdown,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
@@ -177,6 +178,29 @@ def _calculate_skill_score_for_ai(
     return round(
         (len(matched_skills) / len(set(job_skills))) * 100,
         2,
+    )
+
+
+def _build_score_breakdown(
+    semantic_score: float,
+    skill_score: float,
+    experience_score: float,
+) -> AIScoreBreakdown:
+    """
+    Build an explainable weighted score breakdown for AI matching evaluation.
+    """
+
+    semantic_weight = 0.60
+    skill_weight = 0.30
+    experience_weight = 0.10
+
+    return AIScoreBreakdown(
+        semantic_weight=semantic_weight,
+        skill_weight=skill_weight,
+        experience_weight=experience_weight,
+        semantic_contribution=round(semantic_score * semantic_weight, 2),
+        skill_contribution=round(skill_score * skill_weight, 2),
+        experience_contribution=round(experience_score * experience_weight, 2),
     )
 
 
@@ -434,6 +458,12 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
         experience_score=experience_score,
     )
 
+    score_breakdown = _build_score_breakdown(
+    semantic_score=semantic_score,
+    skill_score=skill_score,
+    experience_score=experience_score,
+)
+
     matched_skills = sorted(
         set(cv_entities.skills).intersection(set(job_entities.skills))
     )
@@ -467,6 +497,7 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     skill_score=skill_score,
     experience_score=experience_score,
     final_score=final_score,
+    score_breakdown=score_breakdown,
     recommendation_level=recommendation_level,
     matched_skills=matched_skills,
     missing_skills=missing_skills,
