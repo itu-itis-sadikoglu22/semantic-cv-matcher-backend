@@ -189,3 +189,20 @@ class AIMatchingEvaluationResponse(BaseModel):
     risk_flags: list[str]
     evaluation_metadata: AIEvaluationMetadata
 
+
+class AIDemoTestCase(BaseModel):
+    case_id: str
+    title: str
+    description: str
+    cv_text: str
+    job_text: str
+    candidate_years_experience: float
+    required_years_experience: float
+    critical_skills: list[str]
+    expected_result: str
+
+
+class AIDemoTestCasesResponse(BaseModel):
+    purpose: str
+    test_cases: list[AIDemoTestCase]
+

@@ -18,6 +18,8 @@ from app.schemas.ai import (
     AIMatchingEvaluationResponse,
     AIScoreBreakdown,
     AIEvaluationMetadata,
+    AIDemoTestCase,
+    AIDemoTestCasesResponse,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
@@ -33,7 +35,7 @@ from app.services.berturk_embedding import (
 )
 from app.services.ranking import calculate_final_score
 from app.services.similarity import calculate_cosine_similarity
-from app.services.ner import extract_entities
+
 
 router = APIRouter()
 
@@ -540,32 +542,47 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     )
 
     score_breakdown = _build_score_breakdown(
-    semantic_score=semantic_score,
-    skill_score=skill_score,
-    experience_score=experience_score,
-)
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+    )
 
     matched_skills = sorted(
         set(cv_entities.skills).intersection(set(job_entities.skills))
     )
 
     missing_skills = sorted(
-    set(job_entities.skills) - set(cv_entities.skills)
-)
-    
-    normalized_critical_skills = sorted(
-    set(
-        normalize_skill_name(skill)
-        for skill in request.critical_skills
-        if skill.strip()
+        set(job_entities.skills) - set(cv_entities.skills)
     )
-)
+
+    normalized_critical_skills = sorted(
+        set(
+            normalize_skill_name(skill)
+            for skill in request.critical_skills
+            if skill.strip()
+        )
+    )
 
     missing_critical_skills = sorted(
-    set(normalized_critical_skills) - set(cv_entities.skills)
-)
+        set(normalized_critical_skills) - set(cv_entities.skills)
+    )
 
     recommendation_level = _get_recommendation_level_for_ai(final_score)
+
+    confidence_level = _get_confidence_level_for_ai(
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+        job_skill_count=len(job_entities.skills),
+    )
+
+    risk_flags = _build_risk_flags_for_ai(
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+        missing_skills=missing_skills,
+        missing_critical_skills=missing_critical_skills,
+    )
 
     strengths = _build_ai_strengths(
         matched_skills=matched_skills,
@@ -587,38 +604,115 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
 
     evaluation_metadata = _build_ai_evaluation_metadata()
 
-    confidence_level = _get_confidence_level_for_ai(
-    semantic_score=semantic_score,
-    skill_score=skill_score,
-    experience_score=experience_score,
-    job_skill_count=len(job_entities.skills),
+    return AIMatchingEvaluationResponse(
+        semantic_score=semantic_score,
+        skill_score=skill_score,
+        experience_score=experience_score,
+        final_score=final_score,
+        score_breakdown=score_breakdown,
+        recommendation_level=recommendation_level,
+        confidence_level=confidence_level,
+        risk_flags=risk_flags,
+        evaluation_metadata=evaluation_metadata,
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        missing_critical_skills=missing_critical_skills,
+        cv_entities=cv_entities,
+        job_entities=job_entities,
+        strengths=strengths,
+        weaknesses=weaknesses,
+        ai_comment=ai_comment,
     )
 
-    risk_flags = _build_risk_flags_for_ai(
-    semantic_score=semantic_score,
-    skill_score=skill_score,
-    experience_score=experience_score,
-    missing_skills=missing_skills,
-    missing_critical_skills=missing_critical_skills,
 
-)
+@router.get("/ai/demo-test-cases", response_model=AIDemoTestCasesResponse)
+async def get_ai_demo_test_cases():
+    """
+    Return predefined AI matching demo test cases for project presentation.
+    """
 
-    return AIMatchingEvaluationResponse(
-    semantic_score=semantic_score,
-    skill_score=skill_score,
-    experience_score=experience_score,
-    final_score=final_score,
-    score_breakdown=score_breakdown,
-    recommendation_level=recommendation_level,
-    confidence_level=confidence_level,
-    risk_flags=risk_flags,
-    evaluation_metadata=evaluation_metadata,
-    matched_skills=matched_skills,
-    missing_skills=missing_skills,
-    missing_critical_skills=missing_critical_skills,
-    cv_entities=cv_entities,
-    job_entities=job_entities,
-    strengths=strengths,
-    weaknesses=weaknesses,
-    ai_comment=ai_comment,
-)
+    return AIDemoTestCasesResponse(
+        purpose=(
+            "These predefined cases are designed for demonstrating the AI matching "
+            "evaluation endpoint during project demo and jury presentation."
+        ),
+        test_cases=[
+            AIDemoTestCase(
+                case_id="strong_match_case",
+                title="Strong Backend Developer Match",
+                description=(
+                    "The candidate has almost all required skills and enough experience."
+                ),
+                cv_text=(
+                    "Aday İstanbul konumunda Backend Developer olarak 5 yıl çalışmıştır. "
+                    "Python, FastAPI, PostgreSQL, Docker, Kubernetes, Redis ve REST API "
+                    "teknolojilerinde deneyim sahibidir."
+                ),
+                job_text=(
+                    "İstanbul lokasyonunda Backend Developer arıyoruz. Adayın Python, "
+                    "FastAPI, PostgreSQL, Docker, Kubernetes, Redis ve REST API "
+                    "deneyimine sahip olması beklenmektedir. En az 3 yıl deneyim gereklidir."
+                ),
+                candidate_years_experience=5,
+                required_years_experience=3,
+                critical_skills=[
+                    "Python",
+                    "FastAPI",
+                    "PostgreSQL",
+                    "Docker",
+                    "Kubernetes",
+                ],
+                expected_result="STRONG_MATCH or GOOD_MATCH with HIGH confidence",
+            ),
+            AIDemoTestCase(
+                case_id="partial_match_case",
+                title="Partial Backend Developer Match",
+                description=(
+                    "The candidate has core backend skills but misses some advanced requirements."
+                ),
+                cv_text=(
+                    "Aday Ankara konumunda Backend Developer olarak 3 yıl çalışmıştır. "
+                    "Python, FastAPI, PostgreSQL ve Docker teknolojilerinde deneyim sahibidir."
+                ),
+                job_text=(
+                    "Ankara lokasyonunda Senior Backend Developer arıyoruz. Adayın Python, "
+                    "FastAPI, PostgreSQL, Docker, Kubernetes, Redis ve REST API "
+                    "deneyimine sahip olması beklenmektedir. En az 5 yıl deneyim gereklidir."
+                ),
+                candidate_years_experience=3,
+                required_years_experience=5,
+                critical_skills=[
+                    "Python",
+                    "FastAPI",
+                    "Kubernetes",
+                    "Redis",
+                ],
+                expected_result="POSSIBLE_MATCH or GOOD_MATCH with risk flags",
+            ),
+            AIDemoTestCase(
+                case_id="weak_match_case",
+                title="Weak Match for Backend Role",
+                description=(
+                    "The candidate profile is from a different domain and lacks required backend skills."
+                ),
+                cv_text=(
+                    "Aday satış ve müşteri ilişkileri alanında 1 yıl çalışmıştır. "
+                    "Excel, raporlama ve müşteri iletişimi konularında deneyim sahibidir."
+                ),
+                job_text=(
+                    "İstanbul lokasyonunda Senior Backend Developer arıyoruz. Adayın Python, "
+                    "FastAPI, PostgreSQL, Docker, Kubernetes, Redis ve REST API "
+                    "deneyimine sahip olması beklenmektedir. En az 5 yıl deneyim gereklidir."
+                ),
+                candidate_years_experience=1,
+                required_years_experience=5,
+                critical_skills=[
+                    "Python",
+                    "FastAPI",
+                    "PostgreSQL",
+                    "Docker",
+                ],
+                expected_result="WEAK_MATCH with LOW confidence and multiple risk flags",
+            ),
+        ],
+    )
