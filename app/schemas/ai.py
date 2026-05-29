@@ -225,3 +225,28 @@ class NEREvaluationDatasetResponse(BaseModel):
     purpose: str
     evaluation_note: str
     test_cases: list[NEREvaluationTestCase]
+
+
+class NEREvaluationCaseResult(BaseModel):
+    case_id: str
+    title: str
+    expected_entity_count: int
+    predicted_entity_count: int
+    correct_entity_count: int
+    precision: float
+    recall: float
+    f1_score: float
+    missed_entities: dict[str, list[str]]
+    extra_entities: dict[str, list[str]]
+
+
+class NEREvaluationMetricsResponse(BaseModel):
+    evaluation_method: str
+    evaluated_case_count: int
+    total_expected_entities: int
+    total_predicted_entities: int
+    total_correct_entities: int
+    precision: float
+    recall: float
+    f1_score: float
+    case_results: list[NEREvaluationCaseResult]

@@ -23,6 +23,8 @@ from app.schemas.ai import (
     NEREvaluationDatasetResponse,
     NEREvaluationExpectedEntities,
     NEREvaluationTestCase,
+    NEREvaluationCaseResult,
+    NEREvaluationMetricsResponse,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
@@ -289,6 +291,95 @@ def _build_ai_evaluation_metadata() -> AIEvaluationMetadata:
             "risk_flags",
         ],
     )
+
+def _entities_to_dict(entities) -> dict[str, list[str]]:
+    """
+    Convert entity object into a dictionary for evaluation.
+    """
+
+    return {
+        "skills": entities.skills,
+        "roles": entities.roles,
+        "companies": entities.companies,
+        "dates": entities.dates,
+        "education": entities.education,
+    }
+
+
+def _normalize_entity_set(values: list[str]) -> set[str]:
+    """
+    Normalize entity values for fair comparison.
+    """
+
+    return set(value.strip().lower() for value in values if value.strip())
+
+
+def _calculate_f1_score(precision: float, recall: float) -> float:
+    """
+    Calculate F1-score from precision and recall.
+    """
+
+    if precision + recall == 0:
+        return 0.0
+
+    return round(
+        2 * ((precision * recall) / (precision + recall)),
+        2,
+    )
+
+
+def _evaluate_entities(
+    expected_entities: dict[str, list[str]],
+    predicted_entities: dict[str, list[str]],
+) -> dict:
+    """
+    Compare expected and predicted entities by category.
+    """
+
+    total_expected = 0
+    total_predicted = 0
+    total_correct = 0
+    missed_entities = {}
+    extra_entities = {}
+
+    for category in ["skills", "roles", "companies", "dates", "education"]:
+        expected_set = _normalize_entity_set(expected_entities.get(category, []))
+        predicted_set = _normalize_entity_set(predicted_entities.get(category, []))
+
+        correct_set = expected_set.intersection(predicted_set)
+
+        total_expected += len(expected_set)
+        total_predicted += len(predicted_set)
+        total_correct += len(correct_set)
+
+        missed_entities[category] = sorted(expected_set - predicted_set)
+        extra_entities[category] = sorted(predicted_set - expected_set)
+
+    precision = 0.0
+    recall = 0.0
+
+    if total_predicted > 0:
+        precision = round((total_correct / total_predicted) * 100, 2)
+
+    if total_expected > 0:
+        recall = round((total_correct / total_expected) * 100, 2)
+
+    f1_score = _calculate_f1_score(
+        precision=precision,
+        recall=recall,
+    )
+
+    return {
+        "total_expected": total_expected,
+        "total_predicted": total_predicted,
+        "total_correct": total_correct,
+        "precision": precision,
+        "recall": recall,
+        "f1_score": f1_score,
+        "missed_entities": missed_entities,
+        "extra_entities": extra_entities,
+    }
+
 
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models():
@@ -845,4 +936,87 @@ async def get_ner_evaluation_dataset():
                 ),
             ),
         ],
+    )
+
+@router.post("/ai/ner-evaluate", response_model=NEREvaluationMetricsResponse)
+async def evaluate_ner_performance():
+    """
+    Evaluate NER performance using the predefined NER evaluation dataset.
+    """
+
+    dataset = await get_ner_evaluation_dataset()
+
+    case_results = []
+
+    total_expected_entities = 0
+    total_predicted_entities = 0
+    total_correct_entities = 0
+
+    for test_case in dataset.test_cases:
+        predicted_entities = extract_entities(test_case.text)
+
+        expected_entities_dict = {
+            "skills": test_case.expected_entities.skills,
+            "roles": test_case.expected_entities.roles,
+            "companies": test_case.expected_entities.companies,
+            "dates": test_case.expected_entities.dates,
+            "education": test_case.expected_entities.education,
+        }
+
+        predicted_entities_dict = _entities_to_dict(predicted_entities)
+
+        evaluation_result = _evaluate_entities(
+            expected_entities=expected_entities_dict,
+            predicted_entities=predicted_entities_dict,
+        )
+
+        total_expected_entities += evaluation_result["total_expected"]
+        total_predicted_entities += evaluation_result["total_predicted"]
+        total_correct_entities += evaluation_result["total_correct"]
+
+        case_results.append(
+            NEREvaluationCaseResult(
+                case_id=test_case.case_id,
+                title=test_case.title,
+                expected_entity_count=evaluation_result["total_expected"],
+                predicted_entity_count=evaluation_result["total_predicted"],
+                correct_entity_count=evaluation_result["total_correct"],
+                precision=evaluation_result["precision"],
+                recall=evaluation_result["recall"],
+                f1_score=evaluation_result["f1_score"],
+                missed_entities=evaluation_result["missed_entities"],
+                extra_entities=evaluation_result["extra_entities"],
+            )
+        )
+
+    overall_precision = 0.0
+    overall_recall = 0.0
+
+    if total_predicted_entities > 0:
+        overall_precision = round(
+            (total_correct_entities / total_predicted_entities) * 100,
+            2,
+        )
+
+    if total_expected_entities > 0:
+        overall_recall = round(
+            (total_correct_entities / total_expected_entities) * 100,
+            2,
+        )
+
+    overall_f1_score = _calculate_f1_score(
+        precision=overall_precision,
+        recall=overall_recall,
+    )
+
+    return NEREvaluationMetricsResponse(
+        evaluation_method="rule_based_ner_against_predefined_labeled_dataset",
+        evaluated_case_count=len(dataset.test_cases),
+        total_expected_entities=total_expected_entities,
+        total_predicted_entities=total_predicted_entities,
+        total_correct_entities=total_correct_entities,
+        precision=overall_precision,
+        recall=overall_recall,
+        f1_score=overall_f1_score,
+        case_results=case_results,
     )
