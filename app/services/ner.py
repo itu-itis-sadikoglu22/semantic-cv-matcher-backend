@@ -261,9 +261,24 @@ def extract_entities(text: str) -> ExtractedEntities:
             for skill in raw_skills
         )
     )
+
+    if "FastAPI" in skills and "API" in skills:
+        skills.remove("API")
+
+    if "REST API" in skills and "API" in skills:
+        skills.remove("API")
+
+    if "PostgreSQL" in skills and "SQL" in skills:
+        skills.remove("SQL")
+
+    if "MySQL" in skills and "SQL" in skills:
+        skills.remove("SQL")
+
     roles = _find_keyword_matches(text, ROLE_KEYWORDS)
+
     raw_education = _find_keyword_matches(text, EDUCATION_KEYWORDS)
     education = _clean_education_matches(raw_education)
+
     dates = _extract_dates(text)
 
     return ExtractedEntities(

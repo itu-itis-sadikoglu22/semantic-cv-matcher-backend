@@ -438,6 +438,10 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
         set(cv_entities.skills).intersection(set(job_entities.skills))
     )
 
+    missing_skills = sorted(
+    set(job_entities.skills) - set(cv_entities.skills)
+)
+
     recommendation_level = _get_recommendation_level_for_ai(final_score)
 
     strengths = _build_ai_strengths(
@@ -459,13 +463,16 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     )
 
     return AIMatchingEvaluationResponse(
-        semantic_score=semantic_score,
-        skill_score=skill_score,
-        experience_score=experience_score,
-        final_score=final_score,
-        recommendation_level=recommendation_level,
-        matched_skills=matched_skills,
-        strengths=strengths,
-        weaknesses=weaknesses,
-        ai_comment=ai_comment,
-    )
+    semantic_score=semantic_score,
+    skill_score=skill_score,
+    experience_score=experience_score,
+    final_score=final_score,
+    recommendation_level=recommendation_level,
+    matched_skills=matched_skills,
+    missing_skills=missing_skills,
+    cv_entities=cv_entities,
+    job_entities=job_entities,
+    strengths=strengths,
+    weaknesses=weaknesses,
+    ai_comment=ai_comment,
+)

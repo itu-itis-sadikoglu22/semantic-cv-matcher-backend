@@ -160,6 +160,9 @@ class AIMatchingEvaluationResponse(BaseModel):
     final_score: float
     recommendation_level: str
     matched_skills: list[str]
+    missing_skills: list[str]
+    cv_entities: ExtractedEntities
+    job_entities: ExtractedEntities
     strengths: list[str]
     weaknesses: list[str]
     ai_comment: str
