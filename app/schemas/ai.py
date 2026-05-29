@@ -151,6 +151,7 @@ class AIMatchingEvaluationRequest(BaseModel):
     job_text: str = Field(..., min_length=20)
     candidate_years_experience: float | None = Field(default=None, ge=0)
     required_years_experience: float | None = Field(default=None, ge=0)
+    critical_skills: list[str] = Field(default_factory=list)
 
 class AIScoreBreakdown(BaseModel):
     semantic_weight: float
@@ -169,6 +170,7 @@ class AIMatchingEvaluationResponse(BaseModel):
     recommendation_level: str
     matched_skills: list[str]
     missing_skills: list[str]
+    missing_critical_skills: list[str]
     cv_entities: ExtractedEntities
     job_entities: ExtractedEntities
     strengths: list[str]

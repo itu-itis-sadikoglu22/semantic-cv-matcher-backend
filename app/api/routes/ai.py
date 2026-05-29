@@ -24,7 +24,7 @@ from app.services.transformer_ner import (
     extract_transformer_ner_entities,
 )
 from app.services.hybrid_ner import extract_hybrid_entities
-from app.services.ner import extract_entities
+from app.services.ner import extract_entities, normalize_skill_name
 from app.services.ingestion import create_text_preview
 from app.services.berturk_embedding import (
     BERTURK_MODEL_NAME,
@@ -230,6 +230,7 @@ def _build_risk_flags_for_ai(
     skill_score: float,
     experience_score: float,
     missing_skills: list[str],
+    missing_critical_skills: list[str],
 ) -> list[str]:
     """
     Build risk flags for AI matching evaluation.
@@ -246,8 +247,11 @@ def _build_risk_flags_for_ai(
     if experience_score < 80:
         risk_flags.append("EXPERIENCE_GAP")
 
-    if len(missing_skills) >= 3:
+    if missing_critical_skills:
         risk_flags.append("MISSING_CRITICAL_SKILLS")
+
+    elif len(missing_skills) >= 3:
+        risk_flags.append("MANY_MISSING_REQUIRED_SKILLS")
 
     if not risk_flags:
         risk_flags.append("NO_MAJOR_RISK_DETECTED")
@@ -521,6 +525,18 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     missing_skills = sorted(
     set(job_entities.skills) - set(cv_entities.skills)
 )
+    
+    normalized_critical_skills = sorted(
+    set(
+        normalize_skill_name(skill)
+        for skill in request.critical_skills
+        if skill.strip()
+    )
+)
+
+    missing_critical_skills = sorted(
+    set(normalized_critical_skills) - set(cv_entities.skills)
+)
 
     recommendation_level = _get_recommendation_level_for_ai(final_score)
 
@@ -554,6 +570,8 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     skill_score=skill_score,
     experience_score=experience_score,
     missing_skills=missing_skills,
+    missing_critical_skills=missing_critical_skills,
+
 )
 
     return AIMatchingEvaluationResponse(
@@ -567,6 +585,7 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     risk_flags=risk_flags,
     matched_skills=matched_skills,
     missing_skills=missing_skills,
+    missing_critical_skills=missing_critical_skills,
     cv_entities=cv_entities,
     job_entities=job_entities,
     strengths=strengths,
