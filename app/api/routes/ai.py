@@ -17,6 +17,7 @@ from app.schemas.ai import (
     AIMatchingEvaluationRequest,
     AIMatchingEvaluationResponse,
     AIScoreBreakdown,
+    AIEvaluationMetadata,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
@@ -257,6 +258,32 @@ def _build_risk_flags_for_ai(
         risk_flags.append("NO_MAJOR_RISK_DETECTED")
 
     return risk_flags
+
+
+def _build_ai_evaluation_metadata() -> AIEvaluationMetadata:
+    """
+    Build metadata describing the AI evaluation methodology.
+    """
+
+    return AIEvaluationMetadata(
+        evaluation_method="hybrid_semantic_and_structural_cv_job_matching",
+        semantic_model=EMBEDDING_MODEL_NAME,
+        entity_extraction_method="rule_based_entity_extraction_with_normalization",
+        ranking_strategy=(
+            "weighted_scoring_with_semantic_similarity_skill_overlap_and_experience"
+        ),
+        explainability_features=[
+            "score_breakdown",
+            "matched_skills",
+            "missing_skills",
+            "missing_critical_skills",
+            "entity_breakdown",
+            "strengths",
+            "weaknesses",
+            "confidence_level",
+            "risk_flags",
+        ],
+    )
 
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models():
@@ -558,6 +585,8 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
         recommendation_level=recommendation_level,
     )
 
+    evaluation_metadata = _build_ai_evaluation_metadata()
+
     confidence_level = _get_confidence_level_for_ai(
     semantic_score=semantic_score,
     skill_score=skill_score,
@@ -583,6 +612,7 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     recommendation_level=recommendation_level,
     confidence_level=confidence_level,
     risk_flags=risk_flags,
+    evaluation_metadata=evaluation_metadata,
     matched_skills=matched_skills,
     missing_skills=missing_skills,
     missing_critical_skills=missing_critical_skills,

@@ -162,6 +162,14 @@ class AIScoreBreakdown(BaseModel):
     experience_contribution: float
 
 
+class AIEvaluationMetadata(BaseModel):
+    evaluation_method: str
+    semantic_model: str
+    entity_extraction_method: str
+    ranking_strategy: str
+    explainability_features: list[str]
+
+
 class AIMatchingEvaluationResponse(BaseModel):
     semantic_score: float
     skill_score: float
@@ -179,4 +187,5 @@ class AIMatchingEvaluationResponse(BaseModel):
     score_breakdown: AIScoreBreakdown
     confidence_level: str
     risk_flags: list[str]
+    evaluation_metadata: AIEvaluationMetadata
 
