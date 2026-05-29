@@ -20,6 +20,9 @@ from app.schemas.ai import (
     AIEvaluationMetadata,
     AIDemoTestCase,
     AIDemoTestCasesResponse,
+    NEREvaluationDatasetResponse,
+    NEREvaluationExpectedEntities,
+    NEREvaluationTestCase,
 )
 from app.services.embedding import EMBEDDING_MODEL_NAME, generate_embedding
 from app.services.transformer_ner import (
@@ -713,6 +716,133 @@ async def get_ai_demo_test_cases():
                     "Docker",
                 ],
                 expected_result="WEAK_MATCH with LOW confidence and multiple risk flags",
+            ),
+        ],
+    )
+
+@router.get("/ai/ner-evaluation-dataset", response_model=NEREvaluationDatasetResponse)
+async def get_ner_evaluation_dataset():
+    """
+    Return predefined NER evaluation test cases for project validation.
+    """
+
+    return NEREvaluationDatasetResponse(
+        purpose=(
+            "This dataset provides predefined Turkish CV and job text examples "
+            "with expected entities for evaluating the NER component."
+        ),
+        evaluation_note=(
+            "The next evaluation step will compare extracted entities against "
+            "these expected entities and calculate precision, recall and F1-score."
+        ),
+        test_cases=[
+            NEREvaluationTestCase(
+                case_id="backend_cv_case",
+                title="Backend Developer CV",
+                text=(
+                    "Aday İstanbul konumunda Backend Developer olarak 4 yıl çalışmıştır. "
+                    "Python, FastAPI, PostgreSQL, Docker ve REST API teknolojilerinde "
+                    "deneyim sahibidir. Bilgisayar Mühendisliği lisans mezunudur."
+                ),
+                expected_entities=NEREvaluationExpectedEntities(
+                    skills=[
+                        "Python",
+                        "FastAPI",
+                        "PostgreSQL",
+                        "Docker",
+                        "REST API",
+                    ],
+                    roles=[
+                        "Backend Developer",
+                    ],
+                    companies=[],
+                    dates=[
+                        "4 yıl",
+                    ],
+                    education=[
+                        "Bilgisayar Mühendisliği",
+                    ],
+                ),
+            ),
+            NEREvaluationTestCase(
+                case_id="data_scientist_cv_case",
+                title="Data Scientist CV",
+                text=(
+                    "Aday Data Scientist olarak 3 yıl görev almıştır. Python, "
+                    "Machine Learning, Deep Learning, NLP ve SQL konularında "
+                    "deneyimlidir. Yüksek Lisans eğitimini Veri Bilimi alanında tamamlamıştır."
+                ),
+                expected_entities=NEREvaluationExpectedEntities(
+                    skills=[
+                        "Python",
+                        "Machine Learning",
+                        "Deep Learning",
+                        "NLP",
+                        "SQL",
+                    ],
+                    roles=[
+                        "Data Scientist",
+                    ],
+                    companies=[],
+                    dates=[
+                        "3 yıl",
+                    ],
+                    education=[
+                        "Yüksek Lisans",
+                        "Veri Bilimi",
+                    ],
+                ),
+            ),
+            NEREvaluationTestCase(
+                case_id="frontend_job_case",
+                title="Frontend Developer Job Posting",
+                text=(
+                    "React, JavaScript, TypeScript, HTML ve CSS bilen Frontend Developer "
+                    "aranmaktadır. Adayın en az 2 yıl deneyimli olması beklenmektedir."
+                ),
+                expected_entities=NEREvaluationExpectedEntities(
+                    skills=[
+                        "React",
+                        "JavaScript",
+                        "TypeScript",
+                        "HTML",
+                        "CSS",
+                    ],
+                    roles=[
+                        "Frontend Developer",
+                    ],
+                    companies=[],
+                    dates=[
+                        "en az 2 yıl",
+                    ],
+                    education=[],
+                ),
+            ),
+            NEREvaluationTestCase(
+                case_id="devops_job_case",
+                title="DevOps Engineer Job Posting",
+                text=(
+                    "DevOps Engineer pozisyonu için Docker, Kubernetes, Linux, Git "
+                    "ve PostgreSQL deneyimi olan adaylar aranmaktadır. Minimum 5 yıl "
+                    "deneyim gereklidir."
+                ),
+                expected_entities=NEREvaluationExpectedEntities(
+                    skills=[
+                        "Docker",
+                        "Kubernetes",
+                        "Linux",
+                        "Git",
+                        "PostgreSQL",
+                    ],
+                    roles=[
+                        "DevOps Engineer",
+                    ],
+                    companies=[],
+                    dates=[
+                        "Minimum 5 yıl",
+                    ],
+                    education=[],
+                ),
             ),
         ],
     )

@@ -206,3 +206,22 @@ class AIDemoTestCasesResponse(BaseModel):
     purpose: str
     test_cases: list[AIDemoTestCase]
 
+class NEREvaluationExpectedEntities(BaseModel):
+    skills: list[str]
+    roles: list[str]
+    companies: list[str]
+    dates: list[str]
+    education: list[str]
+
+
+class NEREvaluationTestCase(BaseModel):
+    case_id: str
+    title: str
+    text: str
+    expected_entities: NEREvaluationExpectedEntities
+
+
+class NEREvaluationDatasetResponse(BaseModel):
+    purpose: str
+    evaluation_note: str
+    test_cases: list[NEREvaluationTestCase]
