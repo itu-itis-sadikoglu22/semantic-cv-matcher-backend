@@ -176,4 +176,5 @@ class AIMatchingEvaluationResponse(BaseModel):
     ai_comment: str
     score_breakdown: AIScoreBreakdown
     confidence_level: str
+    risk_flags: list[str]
 

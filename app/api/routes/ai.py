@@ -225,6 +225,34 @@ def _get_confidence_level_for_ai(
 
     return "LOW"
 
+def _build_risk_flags_for_ai(
+    semantic_score: float,
+    skill_score: float,
+    experience_score: float,
+    missing_skills: list[str],
+) -> list[str]:
+    """
+    Build risk flags for AI matching evaluation.
+    """
+
+    risk_flags = []
+
+    if semantic_score < 50:
+        risk_flags.append("LOW_SEMANTIC_SIMILARITY")
+
+    if skill_score < 50:
+        risk_flags.append("LOW_SKILL_OVERLAP")
+
+    if experience_score < 80:
+        risk_flags.append("EXPERIENCE_GAP")
+
+    if len(missing_skills) >= 3:
+        risk_flags.append("MISSING_CRITICAL_SKILLS")
+
+    if not risk_flags:
+        risk_flags.append("NO_MAJOR_RISK_DETECTED")
+
+    return risk_flags
 
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models():
@@ -521,6 +549,13 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     job_skill_count=len(job_entities.skills),
     )
 
+    risk_flags = _build_risk_flags_for_ai(
+    semantic_score=semantic_score,
+    skill_score=skill_score,
+    experience_score=experience_score,
+    missing_skills=missing_skills,
+)
+
     return AIMatchingEvaluationResponse(
     semantic_score=semantic_score,
     skill_score=skill_score,
@@ -529,6 +564,7 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     score_breakdown=score_breakdown,
     recommendation_level=recommendation_level,
     confidence_level=confidence_level,
+    risk_flags=risk_flags,
     matched_skills=matched_skills,
     missing_skills=missing_skills,
     cv_entities=cv_entities,
