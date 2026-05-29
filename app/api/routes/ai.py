@@ -204,6 +204,28 @@ def _build_score_breakdown(
     )
 
 
+def _get_confidence_level_for_ai(
+    semantic_score: float,
+    skill_score: float,
+    experience_score: float,
+    job_skill_count: int,
+) -> str:
+    """
+    Estimate confidence level for the AI matching evaluation.
+    """
+
+    if job_skill_count == 0:
+        return "LOW"
+
+    if semantic_score >= 70 and skill_score >= 60 and experience_score >= 80:
+        return "HIGH"
+
+    if semantic_score >= 50 and skill_score >= 40:
+        return "MEDIUM"
+
+    return "LOW"
+
+
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models():
     """
@@ -492,6 +514,13 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
         recommendation_level=recommendation_level,
     )
 
+    confidence_level = _get_confidence_level_for_ai(
+    semantic_score=semantic_score,
+    skill_score=skill_score,
+    experience_score=experience_score,
+    job_skill_count=len(job_entities.skills),
+    )
+
     return AIMatchingEvaluationResponse(
     semantic_score=semantic_score,
     skill_score=skill_score,
@@ -499,6 +528,7 @@ async def evaluate_ai_matching(request: AIMatchingEvaluationRequest):
     final_score=final_score,
     score_breakdown=score_breakdown,
     recommendation_level=recommendation_level,
+    confidence_level=confidence_level,
     matched_skills=matched_skills,
     missing_skills=missing_skills,
     cv_entities=cv_entities,

@@ -175,4 +175,5 @@ class AIMatchingEvaluationResponse(BaseModel):
     weaknesses: list[str]
     ai_comment: str
     score_breakdown: AIScoreBreakdown
+    confidence_level: str
 
